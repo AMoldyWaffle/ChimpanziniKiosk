@@ -1,0 +1,4079 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="data/offline-shim.js"></script>
+
+<title>CHIMPANZINI PANANINI</title>
+
+<style>
+:root{
+    --bg:#0b0d10;
+    --panel:#12151b;
+    --panel2:#181c23;
+    --border:#282e38;
+    --text:#f2f4f7;
+    --muted:#8d96a5;
+    --accent:#7c5cff;
+    --accent2:#987dff;
+    --danger:#ff5c5c;
+}
+
+*{
+    box-sizing:border-box;
+}
+
+html,
+body{
+    margin:0;
+    padding:0;
+    width:100%;
+    min-height:100%;
+    background:var(--bg);
+    color:var(--text);
+    font-family:
+        Inter,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+}
+
+body{
+    overflow-x:hidden;
+}
+
+button,
+input{
+    font:inherit;
+}
+
+button{
+    cursor:pointer;
+}
+
+#app{
+    width:100%;
+    min-height:100vh;
+}
+
+/* =========================
+   HEADER
+========================= */
+
+header{
+    position:sticky;
+    top:0;
+    z-index:20;
+    display:flex;
+    align-items:center;
+    gap:18px;
+    padding:18px 24px;
+    background:rgba(11,13,16,.94);
+    border-bottom:1px solid var(--border);
+    backdrop-filter:blur(10px);
+}
+
+.logo{
+    font-size:22px;
+    font-weight:800;
+    letter-spacing:.5px;
+    white-space:nowrap;
+}
+
+.searchWrap{
+    flex:1;
+    max-width:650px;
+    margin:auto;
+}
+
+#search{
+    width:100%;
+    padding:11px 15px;
+    color:var(--text);
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:8px;
+    outline:none;
+}
+
+#search:focus{
+    border-color:var(--accent);
+}
+
+.headerButtons{
+    display:flex;
+    gap:8px;
+}
+
+.btn{
+    padding:10px 14px;
+    color:var(--text);
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:7px;
+    transition:
+        background .15s,
+        border-color .15s;
+}
+
+.btn:hover{
+    background:var(--panel2);
+    border-color:#3a414d;
+}
+
+.btn.primary{
+    background:var(--accent);
+    border-color:var(--accent);
+}
+
+.btn.primary:hover{
+    background:var(--accent2);
+}
+
+/* =========================
+   MAIN
+========================= */
+
+main{
+    width:min(1400px, calc(100% - 40px));
+    margin:0 auto;
+    padding:28px 0 60px;
+}
+
+.status{
+    margin-bottom:20px;
+    padding:14px 16px;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:9px;
+    color:var(--muted);
+    font-size:14px;
+}
+
+.status strong{
+    color:var(--text);
+}
+
+/* =========================
+   FILTERS
+========================= */
+
+.filters{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-bottom:25px;
+}
+
+.chip{
+    padding:7px 11px;
+    color:var(--muted);
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:20px;
+    font-size:13px;
+}
+
+.chip:hover{
+    color:var(--text);
+}
+
+.chip.active{
+    color:white;
+    background:var(--accent);
+    border-color:var(--accent);
+}
+
+/* =========================
+   SECTIONS
+========================= */
+
+.sectionTitle{
+    margin:30px 0 13px;
+    color:var(--muted);
+    font-size:18px;
+    font-weight:700;
+}
+
+.grid{
+    display:grid;
+    grid-template-columns:
+        repeat(auto-fill, minmax(190px, 1fr));
+    gap:12px;
+}
+
+/* =========================
+   GAME CARDS
+========================= */
+
+.card{
+    min-height:100px;
+    padding:15px;
+    color:var(--text);
+    text-align:left;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:9px;
+    transition:
+        transform .12s,
+        background .12s,
+        border-color .12s;
+}
+
+.card:hover{
+    transform:translateY(-2px);
+    background:var(--panel2);
+    border-color:#3b424e;
+}
+
+.cardTitle{
+    font-weight:700;
+    line-height:1.3;
+}
+
+.cardMeta{
+    margin-top:8px;
+    color:var(--muted);
+    font-size:12px;
+}
+
+.empty{
+    padding:30px;
+    color:var(--muted);
+    text-align:center;
+    background:var(--panel);
+    border:1px dashed var(--border);
+    border-radius:9px;
+}
+
+/* =========================
+   PLAYER
+========================= */
+
+#player{
+    position:fixed;
+    inset:0;
+    z-index:100;
+    background:#000;
+}
+
+#player.hidden{
+    display:none;
+}
+
+#game{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+}
+
+#portFrame{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    border:0;
+    background:#000;
+}
+
+.playerBar{
+    position:absolute;
+    top:15px;
+    left:15px;
+    z-index:10;
+    display:flex;
+    gap:8px;
+}
+
+.playerButton{
+    padding:9px 13px;
+    color:white;
+    background:rgba(20,20,25,.88);
+    border:1px solid #3a3a44;
+    border-radius:7px;
+}
+
+.playerButton:hover{
+    background:rgba(40,40,48,.95);
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media(max-width:800px){
+
+    header{
+        flex-wrap:wrap;
+    }
+
+    .logo{
+        width:100%;
+    }
+
+    .searchWrap{
+        order:3;
+        width:100%;
+        max-width:none;
+    }
+
+    main{
+        width:min(100% - 24px, 1400px);
+    }
+
+    .grid{
+        grid-template-columns:
+            repeat(auto-fill, minmax(150px, 1fr));
+    }
+}
+</style>
+
+</head>
+
+<body>
+
+<div id="app">
+
+<header>
+
+    <div class="logo">
+        CHIMPANZINI PANANINI
+    </div>
+
+    <div class="searchWrap">
+
+        <input
+            id="search"
+            type="search"
+            placeholder="Search games..."
+            autocomplete="off"
+        >
+
+    </div>
+
+    <div class="headerButtons">
+
+        <button
+            id="chooseFolder"
+            class="btn primary"
+        >
+            Choose SELECT Folder
+        </button>
+
+        <button
+            id="onlineLibrary"
+            class="btn"
+        >
+            Update Latest Version
+        </button>
+
+    </div>
+
+</header>
+
+<main>
+
+    <div
+        id="status"
+        class="status"
+    >
+        <strong>No folder selected.</strong>
+        Click "Choose SELECT Folder" and select your
+        <b>SELECT</b> folder.
+    </div>
+
+    <div
+        id="filters"
+        class="filters"
+    >
+
+        <button
+            class="chip active"
+            data-system="all"
+        >
+            All
+        </button>
+
+    </div>
+
+    <!-- ROMS -->
+
+    <section>
+
+        <div class="sectionTitle">
+            ROM Games
+        </div>
+
+        <div
+            id="gamesGrid"
+            class="grid"
+        ></div>
+
+    </section>
+
+    <!-- PORTS -->
+
+    <section
+        id="portsSection"
+        hidden
+    >
+
+        <div class="sectionTitle">
+            Ports
+        </div>
+
+        <div
+            id="portsGrid"
+            class="grid"
+        ></div>
+
+    </section>
+
+</main>
+
+</div>
+
+
+<!-- =========================
+     PLAYER
+========================= -->
+
+<div
+    id="player"
+    class="hidden"
+>
+
+    <div class="playerBar">
+
+        <button
+            id="backButton"
+            class="playerButton"
+        >
+            ← Back
+        </button>
+
+    </div>
+
+    <div id="game"></div>
+
+    <iframe
+        id="portFrame"
+        hidden
+        allow="autoplay; fullscreen; gamepad"
+    ></iframe>
+
+</div>
+
+
+<script>
+
+/* =========================================================
+   CONFIG
+========================================================= */
+
+const CONFIG = {
+
+    title: "CHIMPANZINI PANANINI",
+
+    selectFolder: "SELECT",
+
+    romFolder: "ROMs",
+
+    portFolder: "Ports",
+
+    saveFolder: "Saves",
+
+    emulatorData:
+        /[\/\\]SELECT[\/\\]/i.test(location.pathname)
+            ? "../data/"
+            : "./data/",
+
+    autosaveIntervalMs: 20000
+
+};
+
+
+/* =========================================================
+   GITHUB LATEST VERSION UPDATER
+========================================================= */
+
+const UPDATE_CONFIG = {
+
+    repository:
+        "AMoldyWaffle/ChimpanziniKiosk",
+
+    branch:
+        "main",
+
+    folder:
+        "LatestVersion",
+
+    files: {
+
+        index:
+            "index.html",
+
+        kiosk:
+            "ChimpanziniKiosk.html"
+
+    }
+
+};
+
+
+/*
+    Raw GitHub base.
+
+    These are the files we download:
+
+        LatestVersion/index.html
+        LatestVersion/ChimpanziniKiosk.html
+*/
+function getUpdateURL(fileName){
+
+    return (
+        "https://raw.githubusercontent.com/" +
+        UPDATE_CONFIG.repository +
+        "/" +
+        UPDATE_CONFIG.branch +
+        "/" +
+        UPDATE_CONFIG.folder +
+        "/" +
+        fileName +
+        "?update=" +
+        Date.now()
+    );
+
+}
+
+
+/*
+    Read a text file from GitHub.
+*/
+async function downloadUpdateFile(fileName){
+
+    const url =
+        getUpdateURL(fileName);
+
+    const response =
+        await fetch(
+            url,
+            {
+                method:"GET",
+                cache:"no-store"
+            }
+        );
+
+    if(!response.ok){
+
+        throw new Error(
+            "GitHub returned HTTP " +
+            response.status +
+            " while downloading " +
+            UPDATE_CONFIG.folder +
+            "/" +
+            fileName
+        );
+
+    }
+
+    const text =
+        await response.text();
+
+    /*
+        Prevent accidentally saving a GitHub error page
+        as an HTML application.
+    */
+    if(
+        !text ||
+        text.trim().length < 20
+    ){
+
+        throw new Error(
+            "GitHub returned an empty file for " +
+            fileName
+        );
+
+    }
+
+    return text;
+
+}
+
+
+/*
+    Write text to a file inside a directory.
+*/
+async function writeTextFile(
+    directory,
+    fileName,
+    contents
+){
+
+    const fileHandle =
+        await directory.getFileHandle(
+            fileName,
+            {
+                create:true
+            }
+        );
+
+    const writable =
+        await fileHandle.createWritable();
+
+    try{
+
+        await writable.write(
+            contents
+        );
+
+        await writable.close();
+
+    }catch(error){
+
+        try{
+            await writable.abort();
+        }catch(_){}
+
+        throw error;
+
+    }
+
+}
+
+
+/*
+    Get the project root.
+
+    IMPORTANT:
+
+    The normal SELECT handle points at:
+
+        Project/SELECT
+
+    It cannot write:
+
+        Project/index.html
+
+    because the browser does not provide a "parent directory"
+    operation.
+
+    Therefore the updater asks for the project folder once.
+*/
+async function chooseProjectRoot(){
+
+    if(
+        !("showDirectoryPicker" in window)
+    ){
+
+        throw new Error(
+            "Your browser does not support the File System Access API. " +
+            "Use a Chromium-based browser such as Chrome, Edge, or Opera."
+        );
+
+    }
+
+    const root =
+        await window.showDirectoryPicker({
+            mode:"readwrite"
+        });
+
+    return root;
+
+}
+
+
+/*
+    Verify that the selected folder actually contains
+    the expected SELECT folder.
+*/
+async function verifyProjectRoot(root){
+
+    try{
+
+        await root.getFileHandle(
+            "index.html"
+        );
+
+    }catch(error){
+
+        throw new Error(
+            'The selected folder does not contain "index.html". ' +
+            'Please select the CHIMPANZINI PANANINI project folder.'
+        );
+
+    }
+
+    try{
+
+        await root.getDirectoryHandle(
+            "SELECT"
+        );
+
+    }catch(error){
+
+        throw new Error(
+            'The selected folder does not contain a "SELECT" folder. ' +
+            'Please select the CHIMPANZINI PANANINI project folder.'
+        );
+
+    }
+
+}
+
+
+/*
+    Main update function.
+*/
+async function updateLatestVersion(){
+
+    const originalText =
+        onlineLibraryButton.textContent;
+
+    try{
+
+        /*
+            Disable the button so the user cannot start
+            two updates simultaneously.
+        */
+
+        onlineLibraryButton.disabled = true;
+
+        onlineLibraryButton.textContent =
+            "Choose Project Folder...";
+
+        statusElement.innerHTML = `
+            <strong>Latest Version Update</strong>
+            <br><br>
+            Select the main
+            <b>CHIMPANZINI PANANINI</b>
+            project folder.
+            <br><br>
+            This is the folder containing:
+            <b>index.html</b>
+            and
+            <b>SELECT</b>.
+        `;
+
+        /*
+            Get writable project root.
+        */
+
+        const projectRoot =
+            await chooseProjectRoot();
+
+        /*
+            Verify it before downloading anything.
+        */
+
+        await verifyProjectRoot(
+            projectRoot
+        );
+
+        /*
+            Find SELECT.
+        */
+
+        const selectFolder =
+            await projectRoot.getDirectoryHandle(
+                "SELECT"
+            );
+
+        /*
+            Download both files BEFORE replacing
+            anything.
+
+            This is important.
+
+            If one download fails, the existing local
+            files are left untouched.
+        */
+
+        statusElement.innerHTML = `
+            <strong>Downloading latest version...</strong>
+            <br><br>
+            Downloading
+            <b>LatestVersion/index.html</b>
+        `;
+
+        const latestIndex =
+            await downloadUpdateFile(
+                UPDATE_CONFIG.files.index
+            );
+
+
+        statusElement.innerHTML = `
+            <strong>Downloading latest version...</strong>
+            <br><br>
+            Downloading
+            <b>LatestVersion/ChimpanziniKiosk.html</b>
+        `;
+
+        const latestKiosk =
+            await downloadUpdateFile(
+                UPDATE_CONFIG.files.kiosk
+            );
+
+
+        /*
+            Both downloads succeeded.
+
+            Now replace the local files.
+        */
+
+        statusElement.innerHTML = `
+            <strong>Installing latest version...</strong>
+            <br><br>
+            Replacing
+            <b>index.html</b>
+            and
+            <b>SELECT/ChimpanziniKiosk.html</b>
+        `;
+
+
+        /*
+            Replace root index.html.
+        */
+
+        await writeTextFile(
+            projectRoot,
+            "index.html",
+            latestIndex
+        );
+
+
+        /*
+            Replace SELECT/ChimpanziniKiosk.html.
+        */
+
+        await writeTextFile(
+            selectFolder,
+            "ChimpanziniKiosk.html",
+            latestKiosk
+        );
+
+
+        /*
+            Give the browser a moment to finish the filesystem
+            operation before reloading.
+        */
+
+        statusElement.innerHTML = `
+            <strong>Update complete!</strong>
+            <br><br>
+            The latest
+            <b>index.html</b>
+            and
+            <b>ChimpanziniKiosk.html</b>
+            have been installed.
+            <br><br>
+            Reloading...
+        `;
+
+
+        await new Promise(
+            resolve =>
+                setTimeout(
+                    resolve,
+                    700
+                )
+        );
+
+
+        /*
+            Reload the launcher.
+
+            The browser will now load the newly written
+            index.html.
+        */
+
+        location.reload();
+
+    }catch(error){
+
+        console.error(
+            "Latest Version update failed:",
+            error
+        );
+
+
+        if(
+            error &&
+            error.name === "AbortError"
+        ){
+
+            statusElement.innerHTML = `
+                <strong>Update cancelled.</strong>
+                <br><br>
+                No files were changed.
+            `;
+
+            return;
+
+        }
+
+
+        statusElement.innerHTML = `
+            <strong>Update failed.</strong>
+            <br><br>
+            ${escapeHTML(
+                error.message ||
+                String(error)
+            )}
+            <br><br>
+            <b>No local files were intentionally replaced
+            unless both GitHub downloads completed.</b>
+        `;
+
+
+        alert(
+            "Latest Version update failed:\n\n" +
+            (
+                error.message ||
+                String(error)
+            )
+        );
+
+    }finally{
+
+        onlineLibraryButton.disabled =
+            false;
+
+        onlineLibraryButton.textContent =
+            originalText;
+
+    }
+
+}
+
+
+/* =========================================================
+   SYSTEM DEFINITIONS
+========================================================= */
+
+const SYSTEMS = {
+
+    nes:{
+        name:"NES",
+        extensions:["nes"]
+    },
+
+    snes:{
+        name:"SNES",
+        extensions:["sfc","smc"]
+    },
+
+    n64:{
+        name:"Nintendo 64",
+        extensions:["n64","z64","v64"]
+    },
+
+    gb:{
+        name:"Game Boy",
+        extensions:["gb"]
+    },
+
+    gbc:{
+        name:"Game Boy Color",
+        extensions:["gbc"]
+    },
+
+    gba:{
+        name:"Game Boy Advance",
+        extensions:["gba"]
+    },
+
+    nds:{
+        name:"Nintendo DS",
+        extensions:["nds"]
+    },
+
+    genesis:{
+        name:"Sega Genesis",
+        extensions:["gen","md"]
+    },
+
+    sms:{
+        name:"Sega Master System",
+        extensions:["sms"]
+    },
+
+    gg:{
+        name:"Game Gear",
+        extensions:["gg"]
+    },
+
+    psx:{
+        name:"PlayStation",
+        extensions:["bin","cue","iso","chd","img"]
+    },
+
+    psp:{
+        name:"PSP",
+        extensions:["iso","cso"]
+    },
+
+    pce:{
+        name:"PC Engine",
+        extensions:["pce"]
+    },
+
+    atari2600:{
+        name:"Atari 2600",
+        extensions:["a26"]
+    },
+
+    atari5200:{
+        name:"Atari 5200",
+        extensions:["a52"]
+    },
+
+    atari7800:{
+        name:"Atari 7800",
+        extensions:["a78"]
+    },
+
+    lynx:{
+        name:"Atari Lynx",
+        extensions:["lnx"]
+    },
+
+    jaguar:{
+        name:"Atari Jaguar",
+        extensions:["j64","jag"]
+    },
+
+    wonderswan:{
+        name:"WonderSwan",
+        extensions:["ws"]
+    },
+
+    wonderswancolor:{
+        name:"WonderSwan Color",
+        extensions:["wsc"]
+    },
+
+    ngp:{
+        name:"Neo Geo Pocket",
+        extensions:["ngp"]
+    },
+
+    ngpc:{
+        name:"Neo Geo Pocket Color",
+        extensions:["ngc"]
+    },
+
+    virtualboy:{
+        name:"Virtual Boy",
+        extensions:["vb"]
+    },
+
+    coleco:{
+        name:"ColecoVision",
+        extensions:["col"]
+    },
+
+    c64:{
+        name:"Commodore 64",
+        extensions:["d64","crt","prg"]
+    },
+
+    amiga:{
+        name:"Amiga",
+        extensions:["adf"]
+    },
+
+    "3ds":{
+        name:"Nintendo 3DS",
+        extensions:["3ds","cia"]
+    }
+
+};
+
+
+/* =========================================================
+   GLOBAL STATE
+========================================================= */
+
+let selectDirectory = null;
+let romDirectory = null;
+let portsDirectory = null;
+let saveDirectory = null;
+
+let games = [];
+let ports = [];
+
+let activeSystem = "all";
+let activeBlobUrl = null;
+
+let pendingAutosaveResolve = null;
+let pendingAutosavePromise = null;
+
+
+/* =========================================================
+   REMEMBER / RESTORE SELECT FOLDER
+========================================================= */
+
+const HANDLE_DB_NAME =
+    "gooncave-launcher";
+
+const HANDLE_STORE =
+    "handles";
+
+const HANDLE_KEY =
+    "selectFolder";
+
+
+function openHandleDB(){
+
+    return new Promise(
+        (resolve, reject) => {
+
+            const request =
+                indexedDB.open(
+                    HANDLE_DB_NAME,
+                    1
+                );
+
+            request.onupgradeneeded = () => {
+
+                request.result
+                    .createObjectStore(
+                        HANDLE_STORE
+                    );
+
+            };
+
+            request.onsuccess = () =>
+                resolve(request.result);
+
+            request.onerror = () =>
+                reject(request.error);
+
+        }
+    );
+
+}
+
+
+async function rememberSelectFolder(handle){
+
+    try{
+
+        const db =
+            await openHandleDB();
+
+        await new Promise(
+            (resolve, reject) => {
+
+                const tx =
+                    db.transaction(
+                        HANDLE_STORE,
+                        "readwrite"
+                    );
+
+                tx.objectStore(HANDLE_STORE)
+                    .put(
+                        handle,
+                        HANDLE_KEY
+                    );
+
+                tx.oncomplete =
+                    resolve;
+
+                tx.onerror = () =>
+                    reject(tx.error);
+
+            }
+        );
+
+    }catch(error){
+
+        console.warn(
+            "Could not remember SELECT folder.",
+            error
+        );
+
+    }
+
+}
+
+
+async function getRememberedSelectFolder(){
+
+    try{
+
+        const db =
+            await openHandleDB();
+
+        return await new Promise(
+            (resolve, reject) => {
+
+                const tx =
+                    db.transaction(
+                        HANDLE_STORE,
+                        "readonly"
+                    );
+
+                const request =
+                    tx.objectStore(HANDLE_STORE)
+                        .get(
+                            HANDLE_KEY
+                        );
+
+                request.onsuccess = () =>
+                    resolve(
+                        request.result ||
+                        null
+                    );
+
+                request.onerror = () =>
+                    reject(
+                        request.error
+                    );
+
+            }
+        );
+
+    }catch(error){
+
+        console.warn(
+            "Could not read remembered SELECT folder.",
+            error
+        );
+
+        return null;
+
+    }
+
+}
+
+
+async function forgetSelectFolder(){
+
+    try{
+
+        const db =
+            await openHandleDB();
+
+        db.transaction(
+            HANDLE_STORE,
+            "readwrite"
+        )
+        .objectStore(
+            HANDLE_STORE
+        )
+        .delete(
+            HANDLE_KEY
+        );
+
+    }catch(error){
+
+        // Ignore.
+
+    }
+
+}
+
+
+/* =========================================================
+   RESTORE SELECT FOLDER
+========================================================= */
+
+async function tryRestoreSelectFolder(){
+
+    if(
+        !("indexedDB" in window) ||
+        !("showDirectoryPicker" in window)
+    ){
+
+        return;
+
+    }
+
+    const handle =
+        await getRememberedSelectFolder();
+
+    if(!handle){
+        return;
+    }
+
+    let permission;
+
+    try{
+
+        permission =
+            await handle.queryPermission({
+                mode:"readwrite"
+            });
+
+    }catch(error){
+
+        console.warn(
+            "Could not query folder permission.",
+            error
+        );
+
+        return;
+
+    }
+
+
+    if(permission === "granted"){
+
+        try{
+
+            await connectSelectFolder(
+                handle
+            );
+
+        }catch(error){
+
+            console.warn(
+                "Could not reconnect SELECT folder.",
+                error
+            );
+
+            await forgetSelectFolder();
+
+        }
+
+        return;
+
+    }
+
+
+    statusElement.innerHTML = `
+
+        <strong>
+            Reconnect to "${escapeHTML(handle.name)}"
+        </strong>
+
+        <br><br>
+
+        <button
+            id="reconnectFolder"
+            class="btn primary"
+        >
+            Reconnect Folder
+        </button>
+
+    `;
+
+
+    const reconnectButton =
+        document.getElementById(
+            "reconnectFolder"
+        );
+
+
+    if(reconnectButton){
+
+        reconnectButton.onclick =
+            async () => {
+
+                try{
+
+                    const granted =
+                        await handle.requestPermission({
+                            mode:"readwrite"
+                        });
+
+                    if(granted !== "granted"){
+                        return;
+                    }
+
+                    await connectSelectFolder(
+                        handle
+                    );
+
+                }catch(error){
+
+                    console.error(
+                        "Could not reconnect SELECT folder.",
+                        error
+                    );
+
+                    await forgetSelectFolder();
+
+                    statusElement.innerHTML = `
+
+                        <strong>
+                            No folder selected.
+                        </strong>
+
+                        Click
+                        <b>Choose SELECT Folder</b>
+                        and select:
+
+                        <b>
+                            ${escapeHTML(CONFIG.title)}/SELECT
+                        </b>
+
+                    `;
+
+                }
+
+            };
+
+    }
+
+}
+
+
+/* =========================================================
+   DOM
+========================================================= */
+
+const chooseFolderButton =
+    document.getElementById(
+        "chooseFolder"
+    );
+
+const onlineLibraryButton =
+    document.getElementById(
+        "onlineLibrary"
+    );
+
+const statusElement =
+    document.getElementById(
+        "status"
+    );
+
+const gamesGrid =
+    document.getElementById(
+        "gamesGrid"
+    );
+
+const portsGrid =
+    document.getElementById(
+        "portsGrid"
+    );
+
+const portsSection =
+    document.getElementById(
+        "portsSection"
+    );
+
+const filtersElement =
+    document.getElementById(
+        "filters"
+    );
+
+const searchElement =
+    document.getElementById(
+        "search"
+    );
+
+const player =
+    document.getElementById(
+        "player"
+    );
+
+const gameElement =
+    document.getElementById(
+        "game"
+    );
+
+const portFrame =
+    document.getElementById(
+        "portFrame"
+    );
+
+const backButton =
+    document.getElementById(
+        "backButton"
+    );
+
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function getExtension(name){
+
+    const parts =
+        name.toLowerCase().split(".");
+
+    if(parts.length < 2){
+        return "";
+    }
+
+    return parts.pop();
+
+}
+
+
+function cleanTitle(name){
+
+    const extension =
+        getExtension(name);
+
+    let title =
+        name.replace(
+            new RegExp(
+                "\\." +
+                extension +
+                "$",
+                "i"
+            ),
+            ""
+        );
+
+    title =
+        title.replace(
+            /[\_-]+/g,
+            " "
+        );
+
+    return title.trim();
+
+}
+
+
+function isPortName(name){
+
+    const extension =
+        getExtension(name);
+
+    return (
+        extension === "html" ||
+        extension === "htm" ||
+        extension === "b64"
+    );
+
+}
+
+
+/* =========================================================
+   GUESS SYSTEM
+========================================================= */
+
+function guessSystem(
+    fileName,
+    path=""
+){
+
+    const extension =
+        getExtension(fileName);
+
+    const lowerPath =
+        path.toLowerCase();
+
+
+    if(
+        lowerPath.includes("gba") ||
+        lowerPath.includes("game boy advance")
+    ){
+
+        return "gba";
+
+    }
+
+
+    if(
+        lowerPath.includes("gbc") ||
+        lowerPath.includes("game boy color")
+    ){
+
+        return "gbc";
+
+    }
+
+
+    if(
+        lowerPath.includes("n64") ||
+        lowerPath.includes("nintendo 64")
+    ){
+
+        return "n64";
+
+    }
+
+
+    if(
+        lowerPath.includes("snes") ||
+        lowerPath.includes("super nintendo")
+    ){
+
+        return "snes";
+
+    }
+
+
+    if(
+        lowerPath.includes("nes") ||
+        lowerPath.includes("nintendo entertainment")
+    ){
+
+        return "nes";
+
+    }
+
+
+    if(
+        lowerPath.includes("ps1") ||
+        lowerPath.includes("psx") ||
+        lowerPath.includes("playstation")
+    ){
+
+        return "psx";
+
+    }
+
+
+    if(lowerPath.includes("psp")){
+        return "psp";
+    }
+
+
+    if(lowerPath.includes("3ds")){
+        return "3ds";
+    }
+
+
+    for(
+        const [id,system]
+        of Object.entries(SYSTEMS)
+    ){
+
+        if(
+            system.extensions.includes(
+                extension
+            )
+        ){
+
+            return id;
+
+        }
+
+    }
+
+
+    return null;
+
+}
+
+
+/* =========================================================
+   CREATE GAME
+========================================================= */
+
+function makeGame(
+    fileName,
+    path
+){
+
+    const system =
+        guessSystem(
+            fileName,
+            path
+        );
+
+    if(!system){
+        return null;
+    }
+
+    return {
+
+        name:
+            cleanTitle(
+                fileName
+            ),
+
+        fileName:
+            fileName,
+
+        path:
+            path,
+
+        system:
+            system
+
+    };
+
+}
+
+
+/* =========================================================
+   HASH
+========================================================= */
+
+function hashId(text){
+
+    let hash = 0;
+
+    for(
+        let i=0;
+        i<text.length;
+        i++
+    ){
+
+        hash =
+            ((hash << 5) - hash)
+            + text.charCodeAt(i);
+
+        hash |= 0;
+
+    }
+
+    return String(
+        Math.abs(hash)
+    );
+
+}
+
+
+/* =========================================================
+   SCAN DIRECTORY
+========================================================= */
+
+async function scanDirectory(
+    directory,
+    relativePath="",
+    type="rom",
+    depth=0
+){
+
+    const results = [];
+
+    if(depth > 8){
+        return results;
+    }
+
+
+    for await(
+        const [name,entry]
+        of directory.entries()
+    ){
+
+        const currentPath =
+            relativePath
+            ? relativePath + "/" + name
+            : name;
+
+
+        if(entry.kind === "directory"){
+
+            const nested =
+                await scanDirectory(
+                    entry,
+                    currentPath,
+                    type,
+                    depth + 1
+                );
+
+            results.push(
+                ...nested
+            );
+
+            continue;
+
+        }
+
+
+        if(entry.kind !== "file"){
+            continue;
+        }
+
+
+        if(type === "rom"){
+
+            const game =
+                makeGame(
+                    name,
+                    currentPath
+                );
+
+            if(game){
+
+                results.push(
+                    game
+                );
+
+            }
+
+        }
+
+
+        if(type === "port"){
+
+            if(isPortName(name)){
+
+                results.push({
+
+                    name:
+                        cleanTitle(name),
+
+                    fileName:
+                        name,
+
+                    path:
+                        currentPath
+
+                });
+
+            }
+
+        }
+
+    }
+
+
+    return results;
+
+}
+
+
+/* =========================================================
+   GET FILE FROM DIRECTORY
+========================================================= */
+
+async function getFileFromPath(
+    rootDirectory,
+    path
+){
+
+    const parts =
+        path.split("/");
+
+    const fileName =
+        parts.pop();
+
+    let directory =
+        rootDirectory;
+
+
+    for(
+        const part of parts
+    ){
+
+        directory =
+            await directory.getDirectoryHandle(
+                part
+            );
+
+    }
+
+
+    const fileHandle =
+        await directory.getFileHandle(
+            fileName
+        );
+
+
+    return await fileHandle.getFile();
+
+}
+
+
+/* =========================================================
+   RENDER FILTERS
+========================================================= */
+
+function renderFilters(){
+
+    filtersElement.innerHTML = "";
+
+
+    const allButton =
+        document.createElement(
+            "button"
+        );
+
+    allButton.className =
+        "chip" +
+        (
+            activeSystem === "all"
+                ? " active"
+                : ""
+        );
+
+    allButton.textContent =
+        "All";
+
+
+    allButton.onclick = () => {
+
+        activeSystem =
+            "all";
+
+        render();
+
+    };
+
+
+    filtersElement.appendChild(
+        allButton
+    );
+
+
+    const usedSystems =
+        [
+            ...new Set(
+                games.map(
+                    game =>
+                        game.system
+                )
+            )
+        ];
+
+
+    usedSystems.sort(
+        (a,b) =>
+            (
+                SYSTEMS[a]?.name ||
+                a
+            ).localeCompare(
+                SYSTEMS[b]?.name ||
+                b
+            )
+    );
+
+
+    for(
+        const systemId
+        of usedSystems
+    ){
+
+        const button =
+            document.createElement(
+                "button"
+            );
+
+        button.className =
+            "chip" +
+            (
+                activeSystem === systemId
+                    ? " active"
+                    : ""
+            );
+
+
+        button.textContent =
+            SYSTEMS[systemId]?.name ||
+            systemId;
+
+
+        button.onclick = () => {
+
+            activeSystem =
+                systemId;
+
+            render();
+
+        };
+
+
+        filtersElement.appendChild(
+            button
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   RENDER ROMS
+========================================================= */
+
+function renderGames(){
+
+    gamesGrid.innerHTML = "";
+
+
+    const search =
+        searchElement.value
+            .trim()
+            .toLowerCase();
+
+
+    const filtered =
+        games.filter(
+            game => {
+
+                if(
+                    activeSystem !== "all" &&
+                    game.system !== activeSystem
+                ){
+
+                    return false;
+
+                }
+
+
+                if(search){
+
+                    const searchable =
+                        (
+                            game.name +
+                            " " +
+                            game.fileName +
+                            " " +
+                            (
+                                SYSTEMS[
+                                    game.system
+                                ]?.name ||
+                                ""
+                            )
+                        ).toLowerCase();
+
+
+                    if(
+                        !searchable.includes(
+                            search
+                        )
+                    ){
+
+                        return false;
+
+                    }
+
+                }
+
+
+                return true;
+
+            }
+        );
+
+
+    if(filtered.length === 0){
+
+        gamesGrid.innerHTML =
+            `
+            <div class="empty">
+                No ROM games found.
+            </div>
+            `;
+
+        return;
+
+    }
+
+
+    filtered.sort(
+        (a,b) =>
+            a.name.localeCompare(
+                b.name
+            )
+    );
+
+
+    for(
+        const game
+        of filtered
+    ){
+
+        const card =
+            document.createElement(
+                "button"
+            );
+
+        card.className =
+            "card";
+
+
+        card.innerHTML = `
+
+            <div class="cardTitle">
+
+                ${escapeHTML(game.name)}
+
+            </div>
+
+            <div class="cardMeta">
+
+                ${escapeHTML(
+                    SYSTEMS[
+                        game.system
+                    ]?.name ||
+                    game.system
+                )}
+
+            </div>
+
+        `;
+
+
+        card.onclick = () => {
+
+            playGame(
+                game
+            );
+
+        };
+
+
+        gamesGrid.appendChild(
+            card
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   RENDER PORTS
+========================================================= */
+
+function renderPorts(){
+
+    portsGrid.innerHTML = "";
+
+
+    const search =
+        searchElement.value
+            .trim()
+            .toLowerCase();
+
+
+    const filtered =
+        ports.filter(
+            port => {
+
+                if(!search){
+                    return true;
+                }
+
+
+                const searchable =
+                    (
+                        port.name +
+                        " " +
+                        port.fileName +
+                        " " +
+                        port.path
+                    ).toLowerCase();
+
+
+                return searchable.includes(
+                    search
+                );
+
+            }
+        );
+
+
+    if(filtered.length === 0){
+
+        portsSection.hidden =
+            false;
+
+        portsGrid.innerHTML =
+            `
+            <div class="empty">
+                No ports found.
+            </div>
+            `;
+
+        return;
+
+    }
+
+
+    portsSection.hidden =
+        false;
+
+
+    filtered.sort(
+        (a,b) =>
+            a.name.localeCompare(
+                b.name
+            )
+    );
+
+
+    for(
+        const port
+        of filtered
+    ){
+
+        const card =
+            document.createElement(
+                "button"
+            );
+
+        card.className =
+            "card";
+
+
+        card.innerHTML = `
+
+            <div class="cardTitle">
+
+                ${escapeHTML(
+                    port.name
+                )}
+
+            </div>
+
+            <div class="cardMeta">
+
+                Port
+
+            </div>
+
+        `;
+
+
+        card.onclick = () => {
+
+            playPort(
+                port
+            );
+
+        };
+
+
+        portsGrid.appendChild(
+            card
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   RENDER
+========================================================= */
+
+function render(){
+
+    renderFilters();
+
+    renderGames();
+
+    renderPorts();
+
+}
+
+
+/* =========================================================
+   ESCAPE HTML
+========================================================= */
+
+function escapeHTML(text){
+
+    return String(text)
+
+        .replaceAll(
+            "&",
+            "&amp;"
+        )
+
+        .replaceAll(
+            "<",
+            "&lt;"
+        )
+
+        .replaceAll(
+            ">",
+            "&gt;"
+        )
+
+        .replaceAll(
+            '"',
+            "&quot;"
+        )
+
+        .replaceAll(
+            "'",
+            "&#039;"
+        );
+
+}
+
+
+/* =========================================================
+   STATUS
+========================================================= */
+
+function updateStatus(){
+
+    const romCount =
+        games.length;
+
+    const portCount =
+        ports.length;
+
+
+    let saveText;
+
+
+    if(saveDirectory){
+
+        saveText =
+            `<strong>Saves folder connected.</strong>`;
+
+    }else{
+
+        saveText =
+            `<strong>Saves folder not found.</strong>`;
+
+    }
+
+
+    statusElement.innerHTML = `
+
+        <strong>
+            SELECT folder connected.
+        </strong>
+
+        ${romCount}
+
+        ${romCount === 1
+            ? "ROM game"
+            : "ROM games"}
+
+        and
+
+        ${portCount}
+
+        ${portCount === 1
+            ? "port"
+            : "ports"}
+
+        found.
+
+        ${saveText}
+
+    `;
+
+}
+
+
+/* =========================================================
+   CONNECT SELECT FOLDER
+========================================================= */
+
+async function connectSelectFolder(
+    handle
+){
+
+    selectDirectory =
+        handle;
+
+    games = [];
+
+    ports = [];
+
+    activeSystem =
+        "all";
+
+
+    /*
+        Find ROMs.
+    */
+
+    try{
+
+        romDirectory =
+            await selectDirectory
+                .getDirectoryHandle(
+                    CONFIG.romFolder
+                );
+
+    }catch(error){
+
+        console.warn(
+            "ROMs folder not found.",
+            error
+        );
+
+        romDirectory =
+            null;
+
+    }
+
+
+    /*
+        Find Ports.
+    */
+
+    try{
+
+        portsDirectory =
+            await selectDirectory
+                .getDirectoryHandle(
+                    CONFIG.portFolder
+                );
+
+    }catch(error){
+
+        console.warn(
+            "Ports folder not found.",
+            error
+        );
+
+        portsDirectory =
+            null;
+
+    }
+
+
+    /*
+        Find/create Saves.
+    */
+
+    try{
+
+        saveDirectory =
+            await selectDirectory
+                .getDirectoryHandle(
+                    CONFIG.saveFolder,
+                    {
+                        create:true
+                    }
+                );
+
+    }catch(error){
+
+        console.warn(
+            "Could not create/find Saves folder.",
+            error
+        );
+
+        saveDirectory =
+            null;
+
+    }
+
+
+    /*
+        Scan ROMs.
+    */
+
+    if(romDirectory){
+
+        games =
+            await scanDirectory(
+                romDirectory,
+                "",
+                "rom"
+            );
+
+    }
+
+
+    /*
+        Scan Ports.
+    */
+
+    if(portsDirectory){
+
+        ports =
+            await scanDirectory(
+                portsDirectory,
+                "",
+                "port"
+            );
+
+    }
+
+
+    /*
+        Remember folder.
+    */
+
+    await rememberSelectFolder(
+        selectDirectory
+    );
+
+
+    updateStatus();
+
+    render();
+
+}
+
+
+/* =========================================================
+   CHOOSE SELECT FOLDER
+========================================================= */
+
+async function chooseSelectFolder(){
+
+    selectDirectory =
+        null;
+
+    romDirectory =
+        null;
+
+    portsDirectory =
+        null;
+
+    saveDirectory =
+        null;
+
+    games = [];
+
+    ports = [];
+
+    activeSystem =
+        "all";
+
+
+    try{
+
+        if(
+            "showDirectoryPicker"
+            in window
+        ){
+
+            const selected =
+                await window.showDirectoryPicker({
+                    mode:"readwrite"
+                });
+
+
+            if(
+                selected.name !==
+                CONFIG.selectFolder
+            ){
+
+                const proceed =
+                    confirm(
+                        `You selected "${selected.name}".\n\n` +
+                        `Please select the "SELECT" folder.\n\n` +
+                        `Press OK to use this folder anyway, ` +
+                        `or Cancel to choose again.`
+                    );
+
+
+                if(!proceed){
+
+                    return;
+
+                }
+
+            }
+
+
+            await connectSelectFolder(
+                selected
+            );
+
+            return;
+
+        }
+
+
+        chooseFolderFallback();
+
+    }catch(error){
+
+        console.error(
+            "Folder selection failed:",
+            error
+        );
+
+
+        if(
+            error &&
+            error.name === "AbortError"
+        ){
+
+            return;
+
+        }
+
+
+        statusElement.innerHTML = `
+
+            <strong>
+                Could not open SELECT folder.
+            </strong>
+
+            ${escapeHTML(
+                error.message ||
+                String(error)
+            )}
+
+        `;
+
+    }
+
+}
+
+
+/* =========================================================
+   FALLBACK DIRECTORY PICKER
+========================================================= */
+
+function chooseFolderFallback(){
+
+    const input =
+        document.createElement(
+            "input"
+        );
+
+
+    input.type =
+        "file";
+
+    input.webkitdirectory =
+        true;
+
+    input.multiple =
+        true;
+
+
+    input.onchange = () => {
+
+        if(!input.files.length){
+            return;
+        }
+
+
+        games = [];
+
+        ports = [];
+
+        saveDirectory =
+            null;
+
+
+        for(
+            const file
+            of input.files
+        ){
+
+            const relative =
+                file.webkitRelativePath
+                    .replaceAll(
+                        "\\",
+                        "/"
+                    );
+
+
+            const parts =
+                relative.split("/");
+
+
+            parts.shift();
+
+
+            const path =
+                parts.join("/");
+
+
+            const lowerPath =
+                path.toLowerCase();
+
+
+            /*
+                ROMS
+            */
+
+            if(
+                lowerPath.startsWith(
+                    "roms/"
+                )
+            ){
+
+                const game =
+                    makeGame(
+                        file.name,
+                        path
+                    );
+
+
+                if(game){
+
+                    game.fallbackFile =
+                        file;
+
+                    games.push(
+                        game
+                    );
+
+                }
+
+            }
+
+
+            /*
+                PORTS
+            */
+
+            if(
+                lowerPath.startsWith(
+                    "ports/"
+                )
+            ){
+
+                if(
+                    isPortName(
+                        file.name
+                    )
+                ){
+
+                    ports.push({
+
+                        name:
+                            cleanTitle(
+                                file.name
+                            ),
+
+                        fileName:
+                            file.name,
+
+                        path:
+                            path,
+
+                        fallbackFile:
+                            file
+
+                    });
+
+                }
+
+            }
+
+        }
+
+
+        statusElement.innerHTML = `
+
+            <strong>
+                SELECT folder loaded.
+            </strong>
+
+            ${games.length}
+            ROM games and
+
+            ${ports.length}
+            ports found.
+
+            <strong>
+
+                The Saves folder requires the modern
+                folder picker to write files.
+
+            </strong>
+
+        `;
+
+
+        render();
+
+    };
+
+
+    input.click();
+
+}
+
+
+/* =========================================================
+   SAVE FOLDER PERMISSION
+========================================================= */
+
+async function ensureSaveFolderPermission(
+    promptIfNeeded = true
+){
+
+    if(!saveDirectory){
+        return false;
+    }
+
+
+    try{
+
+        let state =
+            await saveDirectory.queryPermission({
+                mode:"readwrite"
+            });
+
+
+        if(state === "granted"){
+            return true;
+        }
+
+
+        if(promptIfNeeded){
+
+            state =
+                await saveDirectory.requestPermission({
+                    mode:"readwrite"
+                });
+
+            return state === "granted";
+
+        }
+
+
+        return false;
+
+    }catch(error){
+
+        console.warn(
+            "Saves permission error:",
+            error
+        );
+
+        return false;
+
+    }
+
+}
+
+
+/* =========================================================
+   WRITE SAVE FILE
+========================================================= */
+
+async function writeSaveFile(
+    fileName,
+    contents
+){
+
+    if(!saveDirectory){
+
+        console.warn(
+            "No Saves folder connected."
+        );
+
+        return false;
+
+    }
+
+
+    try{
+
+        const allowed =
+            await ensureSaveFolderPermission(
+                true
+            );
+
+
+        if(!allowed){
+
+            console.warn(
+                "Saves folder permission denied."
+            );
+
+            return false;
+
+        }
+
+
+        const fileHandle =
+            await saveDirectory.getFileHandle(
+                fileName,
+                {
+                    create:true
+                }
+            );
+
+
+        const writable =
+            await fileHandle.createWritable();
+
+
+        await writable.write(
+            contents
+        );
+
+
+        await writable.close();
+
+
+        console.log(
+            "Save written:",
+            fileName
+        );
+
+
+        return true;
+
+    }catch(error){
+
+        console.error(
+            "Could not write save file:",
+            error
+        );
+
+        return false;
+
+    }
+
+}
+
+
+/* =========================================================
+   READ SAVE FILE
+========================================================= */
+
+async function readSaveFile(
+    fileName
+){
+
+    if(!saveDirectory){
+        return null;
+    }
+
+
+    try{
+
+        const allowed =
+            await ensureSaveFolderPermission(
+                true
+            );
+
+
+        if(!allowed){
+            return null;
+        }
+
+
+        const fileHandle =
+            await saveDirectory.getFileHandle(
+                fileName
+            );
+
+
+        const file =
+            await fileHandle.getFile();
+
+
+        return await file.text();
+
+    }catch(error){
+
+        return null;
+
+    }
+
+}
+
+
+/* =========================================================
+   EMULATORJS SAVE BRIDGE
+========================================================= */
+
+function emulatorSaveFileName(
+    gameId
+){
+
+    return gameId + ".srm";
+
+}
+
+
+function emulatorStateFileName(
+    gameId
+){
+
+    return gameId + ".state";
+
+}
+
+
+async function writeSaveFileBinary(
+    fileName,
+    bytes
+){
+
+    if(
+        !saveDirectory ||
+        !bytes
+    ){
+
+        return false;
+
+    }
+
+
+    try{
+
+        const allowed =
+            await ensureSaveFolderPermission(
+                true
+            );
+
+
+        if(!allowed){
+            return false;
+        }
+
+
+        const fileHandle =
+            await saveDirectory.getFileHandle(
+                fileName,
+                {
+                    create:true
+                }
+            );
+
+
+        const writable =
+            await fileHandle.createWritable();
+
+
+        await writable.write(
+            bytes
+        );
+
+
+        await writable.close();
+
+
+        return true;
+
+    }catch(error){
+
+        console.error(
+            "Could not write EmulatorJS save file:",
+            error
+        );
+
+        return false;
+
+    }
+
+}
+
+
+async function readSaveFileBinary(
+    fileName
+){
+
+    if(!saveDirectory){
+        return null;
+    }
+
+
+    try{
+
+        const allowed =
+            await ensureSaveFolderPermission(
+                true
+            );
+
+
+        if(!allowed){
+            return null;
+        }
+
+
+        const fileHandle =
+            await saveDirectory.getFileHandle(
+                fileName
+            );
+
+
+        const file =
+            await fileHandle.getFile();
+
+
+        const buffer =
+            await file.arrayBuffer();
+
+
+        return new Uint8Array(
+            buffer
+        );
+
+    }catch(error){
+
+        return null;
+
+    }
+
+}
+
+
+function armPendingAutosaveWait(){
+
+    pendingAutosavePromise =
+        new Promise(
+            resolve => {
+
+                pendingAutosaveResolve =
+                    resolve;
+
+            }
+        );
+
+
+    return pendingAutosavePromise;
+
+}
+
+
+async function flushEmulatorSaveBeforeExit(){
+
+    const emulator =
+        window.EJS_emulator;
+
+
+    if(
+        !emulator ||
+        !emulator.gameManager ||
+        typeof emulator.gameManager.saveSaveFiles !==
+            "function"
+    ){
+
+        return;
+
+    }
+
+
+    try{
+
+        const waitForWrite =
+            armPendingAutosaveWait();
+
+
+        emulator.gameManager.saveSaveFiles();
+
+
+        await Promise.race([
+
+            waitForWrite,
+
+            new Promise(
+                resolve =>
+                    setTimeout(
+                        resolve,
+                        1500
+                    )
+            )
+
+        ]);
+
+    }catch(error){
+
+        console.error(
+            "Could not flush save before exit:",
+            error
+        );
+
+    }
+
+}
+
+
+async function loadEmulatorSaveOnStart(
+    gameId
+){
+
+    const emulator =
+        window.EJS_emulator;
+
+
+    if(
+        !emulator ||
+        !emulator.gameManager
+    ){
+
+        return;
+
+    }
+
+
+    const bytes =
+        await readSaveFileBinary(
+            emulatorSaveFileName(
+                gameId
+            )
+        );
+
+
+    if(!bytes){
+        return;
+    }
+
+
+    const gameManager =
+        emulator.gameManager;
+
+
+    const path =
+        gameManager.getSaveFilePath();
+
+
+    const parts =
+        path.split("/");
+
+
+    let currentPath = "";
+
+
+    for(
+        let i=0;
+        i<parts.length - 1;
+        i++
+    ){
+
+        if(parts[i] === ""){
+            continue;
+        }
+
+
+        currentPath +=
+            "/" + parts[i];
+
+
+        if(
+            !gameManager.FS
+                .analyzePath(
+                    currentPath
+                )
+                .exists
+        ){
+
+            gameManager.FS.mkdir(
+                currentPath
+            );
+
+        }
+
+    }
+
+
+    if(
+        gameManager.FS
+            .analyzePath(
+                path
+            )
+            .exists
+    ){
+
+        gameManager.FS.unlink(
+            path
+        );
+
+    }
+
+
+    gameManager.FS.writeFile(
+        path,
+        bytes
+    );
+
+
+    gameManager.loadSaveFiles();
+
+}
+
+
+/* =========================================================
+   SAVE BRIDGE
+========================================================= */
+
+window.addEventListener(
+    "message",
+    async event => {
+
+        if(
+            event.source !==
+            portFrame.contentWindow
+        ){
+
+            return;
+
+        }
+
+
+        const message =
+            event.data;
+
+
+        if(
+            !message ||
+            message.source !==
+            "pvz-portable"
+        ){
+
+            return;
+
+        }
+
+
+        const type =
+            message.type;
+
+        const payload =
+            message.payload || {};
+
+        const id =
+            payload.id;
+
+
+        /*
+            SAVE
+        */
+
+        if(
+            type ===
+            "folder-save-request"
+        ){
+
+            const ok =
+                await writeSaveFile(
+                    payload.fileName,
+                    payload.contents
+                );
+
+
+            portFrame.contentWindow.postMessage(
+                {
+                    source:
+                        "pvz-portable-host",
+
+                    payload:{
+                        id:id,
+                        ok:ok
+                    }
+                },
+                "*"
+            );
+
+
+            return;
+
+        }
+
+
+        /*
+            LOAD
+        */
+
+        if(
+            type ===
+            "folder-load-request"
+        ){
+
+            const contents =
+                await readSaveFile(
+                    payload.fileName
+                );
+
+
+            portFrame.contentWindow.postMessage(
+                {
+                    source:
+                        "pvz-portable-host",
+
+                    payload:{
+                        id:id,
+
+                        ok:
+                            contents !== null,
+
+                        contents:
+                            contents
+                    }
+                },
+                "*"
+            );
+
+
+            return;
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   CREATE ROM URL
+========================================================= */
+
+async function createROMURL(
+    game
+){
+
+    if(romDirectory){
+
+        const file =
+            await getFileFromPath(
+                romDirectory,
+                game.path
+            );
+
+
+        return URL.createObjectURL(
+            file
+        );
+
+    }
+
+
+    if(game.fallbackFile){
+
+        return URL.createObjectURL(
+            game.fallbackFile
+        );
+
+    }
+
+
+    throw new Error(
+        "Could not access ROM file."
+    );
+
+}
+
+
+/* =========================================================
+   PLAY ROM
+========================================================= */
+
+async function playGame(
+    game
+){
+
+    try{
+
+        if(activeBlobUrl){
+
+            URL.revokeObjectURL(
+                activeBlobUrl
+            );
+
+            activeBlobUrl =
+                null;
+
+        }
+
+
+        const romURL =
+            await createROMURL(
+                game
+            );
+
+
+        activeBlobUrl =
+            romURL;
+
+
+        portFrame.hidden =
+            true;
+
+        portFrame.src =
+            "about:blank";
+
+
+        gameElement.hidden =
+            false;
+
+
+        player.classList.remove(
+            "hidden"
+        );
+
+
+        window.EJS_player =
+            "#game";
+
+
+        window.EJS_core =
+            game.system;
+
+
+        window.EJS_gameName =
+            game.key ||
+            game.name;
+
+
+        const gameId =
+            hashId(
+                game.system +
+                ":" +
+                game.name
+            );
+
+
+        window.EJS_gameID =
+            gameId;
+
+
+        window.EJS_gameUrl =
+            romURL;
+
+
+        window.EJS_pathtodata =
+            CONFIG.emulatorData;
+
+
+        window.EJS_startOnLoaded =
+            true;
+
+
+        window.EJS_color =
+            "#7c5cff";
+
+
+        window.EJS_askBeforeExit =
+            false;
+
+
+        window.EJS_threads =
+            (
+                game.system === "psp" ||
+                game.system === "3ds"
+            );
+
+
+        window.EJS_onGameStart =
+            async () => {
+
+                await loadEmulatorSaveOnStart(
+                    gameId
+                );
+
+            };
+
+
+        window.EJS_onSaveUpdate =
+            async data => {
+
+                await writeSaveFileBinary(
+                    emulatorSaveFileName(
+                        gameId
+                    ),
+                    data.save
+                );
+
+
+                if(pendingAutosaveResolve){
+
+                    pendingAutosaveResolve();
+
+                    pendingAutosaveResolve =
+                        null;
+
+                }
+
+            };
+
+
+        window.EJS_fixedSaveInterval =
+            CONFIG.autosaveIntervalMs;
+
+
+        window.EJS_Buttons =
+            {
+                exitEmulation:false
+            };
+
+
+        window.EJS_onSaveSave =
+            async data => {
+
+                await writeSaveFileBinary(
+                    emulatorSaveFileName(
+                        gameId
+                    ),
+                    data.save
+                );
+
+            };
+
+
+        window.EJS_onLoadSave =
+            async () => {
+
+                await loadEmulatorSaveOnStart(
+                    gameId
+                );
+
+            };
+
+
+        window.EJS_onSaveState =
+            async data => {
+
+                await writeSaveFileBinary(
+                    emulatorStateFileName(
+                        gameId
+                    ),
+                    data.state
+                );
+
+            };
+
+
+        window.EJS_onLoadState =
+            async () => {
+
+                const bytes =
+                    await readSaveFileBinary(
+                        emulatorStateFileName(
+                            gameId
+                        )
+                    );
+
+
+                if(
+                    bytes &&
+                    window.EJS_emulator &&
+                    window.EJS_emulator.gameManager
+                ){
+
+                    window.EJS_emulator.gameManager
+                        .loadState(
+                            bytes
+                        );
+
+                }
+
+            };
+
+
+        /*
+            Remove old EmulatorJS loader.
+        */
+
+        const oldLoader =
+            document.getElementById(
+                "emulatorjs-loader"
+            );
+
+
+        if(oldLoader){
+            oldLoader.remove();
+        }
+
+
+        /*
+            Load EmulatorJS.
+        */
+
+        const script =
+            document.createElement(
+                "script"
+            );
+
+
+        script.id =
+            "emulatorjs-loader";
+
+
+        script.src =
+            CONFIG.emulatorData +
+            "loader.js";
+
+
+        script.onerror = () => {
+
+            alert(
+                "EmulatorJS could not be loaded.\n\n" +
+                "Check your internet connection."
+            );
+
+        };
+
+
+        document.body.appendChild(
+            script
+        );
+
+    }catch(error){
+
+        console.error(
+            error
+        );
+
+
+        alert(
+            "Could not start game:\n\n" +
+            error.message
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   GET PORT FILE
+========================================================= */
+
+async function getPortFile(
+    port
+){
+
+    if(portsDirectory){
+
+        return await getFileFromPath(
+            portsDirectory,
+            port.path
+        );
+
+    }
+
+
+    if(port.fallbackFile){
+
+        return port.fallbackFile;
+
+    }
+
+
+    throw new Error(
+        "Could not access port file."
+    );
+
+}
+
+
+/* =========================================================
+   PLAY PORT
+========================================================= */
+
+async function playPort(
+    port
+){
+
+    try{
+
+        if(activeBlobUrl){
+
+            URL.revokeObjectURL(
+                activeBlobUrl
+            );
+
+            activeBlobUrl =
+                null;
+
+        }
+
+
+        const file =
+            await getPortFile(
+                port
+            );
+
+
+        const extension =
+            getExtension(
+                file.name
+            );
+
+
+        /*
+            Normal HTML.
+        */
+
+        if(
+            extension === "html" ||
+            extension === "htm"
+        ){
+
+            activeBlobUrl =
+                URL.createObjectURL(
+                    file
+                );
+
+
+            portFrame.src =
+                activeBlobUrl;
+
+        }
+
+
+        /*
+            Base64 HTML.
+        */
+
+        else if(
+            extension === "b64"
+        ){
+
+            const text =
+                await file.text();
+
+
+            let decoded;
+
+
+            try{
+
+                decoded =
+                    atob(
+                        text.replace(
+                            /\s/g,
+                            ""
+                        )
+                    );
+
+            }catch(error){
+
+                throw new Error(
+                    "This .b64 file is not valid Base64."
+                );
+
+            }
+
+
+            const bytes =
+                new Uint8Array(
+                    decoded.length
+                );
+
+
+            for(
+                let i=0;
+                i<decoded.length;
+                i++
+            ){
+
+                bytes[i] =
+                    decoded.charCodeAt(i);
+
+            }
+
+
+            const htmlBlob =
+                new Blob(
+                    [bytes],
+                    {
+                        type:"text/html"
+                    }
+                );
+
+
+            activeBlobUrl =
+                URL.createObjectURL(
+                    htmlBlob
+                );
+
+
+            portFrame.src =
+                activeBlobUrl;
+
+        }
+
+
+        gameElement.hidden =
+            true;
+
+        portFrame.hidden =
+            false;
+
+
+        player.classList.remove(
+            "hidden"
+        );
+
+    }catch(error){
+
+        console.error(
+            error
+        );
+
+
+        alert(
+            "Could not start port:\n\n" +
+            error.message
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   LEAVE GAME
+========================================================= */
+
+async function leaveGame(){
+
+    await flushEmulatorSaveBeforeExit();
+
+    location.reload();
+
+}
+
+
+/* =========================================================
+   SEARCH
+========================================================= */
+
+searchElement.addEventListener(
+    "input",
+    () => {
+        render();
+    }
+);
+
+
+/* =========================================================
+   KEYBOARD SEARCH
+========================================================= */
+
+document.addEventListener(
+    "keydown",
+    event => {
+
+        if(
+            event.key === "/" &&
+            document.activeElement !==
+            searchElement
+        ){
+
+            event.preventDefault();
+
+            searchElement.focus();
+
+        }
+
+
+        if(
+            event.key === "Escape" &&
+            document.activeElement ===
+            searchElement
+        ){
+
+            searchElement.value =
+                "";
+
+            render();
+
+            searchElement.blur();
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   BUTTON EVENTS
+========================================================= */
+
+chooseFolderButton.onclick =
+    chooseSelectFolder;
+
+
+/*
+    UPDATE HANDLER
+
+    Clicking "Update Latest Version" downloads:
+
+        GitHub:
+        LatestVersion/index.html
+
+        GitHub:
+        LatestVersion/ChimpanziniKiosk.html
+
+    and replaces:
+
+        local/index.html
+
+        local/SELECT/ChimpanziniKiosk.html
+
+    The project-root folder must be selected because
+    the browser cannot obtain the parent directory of
+    the existing SELECT handle.
+*/
+
+onlineLibraryButton.onclick =
+    updateLatestVersion;
+
+
+backButton.onclick =
+    leaveGame;
+
+
+/* =========================================================
+   BEST-EFFORT SAVE SAFETY
+========================================================= */
+
+function triggerBestEffortSave(){
+
+    const emulator =
+        window.EJS_emulator;
+
+
+    if(
+        emulator &&
+        emulator.gameManager &&
+        typeof emulator.gameManager.saveSaveFiles ===
+            "function"
+    ){
+
+        emulator.gameManager.saveSaveFiles();
+
+    }
+
+}
+
+
+document.addEventListener(
+    "visibilitychange",
+    () => {
+
+        if(document.hidden){
+
+            triggerBestEffortSave();
+
+        }
+
+    }
+);
+
+
+window.addEventListener(
+    "pagehide",
+    triggerBestEffortSave
+);
+
+
+/* =========================================================
+   INITIAL STATE
+========================================================= */
+
+statusElement.innerHTML = `
+
+    <strong>
+        No folder selected.
+    </strong>
+
+    Click
+    <b>Choose SELECT Folder</b>
+    and select:
+
+    <b>
+        CHIMPANZINI PANANINI/SELECT
+    </b>
+
+    <br><br>
+
+    The launcher will automatically find:
+
+    <b>ROMs</b>,
+    <b>Ports</b>,
+    and
+    <b>Saves</b>.
+
+`;
+
+
+render();
+
+
+/*
+    Try to silently reconnect to the last SELECT folder.
+*/
+
+tryRestoreSelectFolder();
+
+</script>
+
+</body>
+</html>
