@@ -1,0 +1,1 @@
+(window.__EJS_OFFLINE_CACHE__=window.__EJS_OFFLINE_CACHE__||{})["cores/reports/mednafen_wswan.json"]="eyAiY29yZSI6ICJtZWRuYWZlbl93c3dhbiIsICJidWlsZFN0YXJ0IjogIjIwMjYtMDUtMTdUMTc6MjA6NDQrMDA6MDAiLCAiYnVpbGRFbmQiOiAiMjAyNi0wNS0xN1QxNzoyMToxNCswMDowMCIsICJvcHRpb25zIjoge30gfQo=";

@@ -1,0 +1,1 @@
+(window.__EJS_OFFLINE_CACHE__=window.__EJS_OFFLINE_CACHE__||{})["cores/reports/desmume.json"]="eyAiY29yZSI6ICJkZXNtdW1lIiwgImJ1aWxkU3RhcnQiOiAiMjAyNi0wNS0xN1QxNzowNTowMiswMDowMCIsICJidWlsZEVuZCI6ICIyMDI2LTA1LTE3VDE3OjA2OjEwKzAwOjAwIiwgIm9wdGlvbnMiOiB7ICJkZWZhdWx0V2ViR0wyIjogdHJ1ZSwgInN1cHBvcnRzTW91c2UiOiB0cnVlIH0gfQo=";

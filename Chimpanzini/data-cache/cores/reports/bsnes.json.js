@@ -1,0 +1,1 @@
+(window.__EJS_OFFLINE_CACHE__=window.__EJS_OFFLINE_CACHE__||{})["cores/reports/bsnes.json"]="eyAiY29yZSI6ICJic25lcyIsICJidWlsZFN0YXJ0IjogIjIwMjYtMDUtMTdUMTY6NTc6NDMrMDA6MDAiLCAiYnVpbGRFbmQiOiAiMjAyNi0wNS0xN1QxNjo1ODo1OSswMDowMCIsICJvcHRpb25zIjoge30gfQo=";

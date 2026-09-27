@@ -1,0 +1,1 @@
+(window.__EJS_OFFLINE_CACHE__=window.__EJS_OFFLINE_CACHE__||{})["cores/reports/vice_xplus4.json"]="eyAiY29yZSI6ICJ2aWNlX3hwbHVzNCIsICJidWlsZFN0YXJ0IjogIjIwMjYtMDUtMTdUMTY6NTE6NTArMDA6MDAiLCAiYnVpbGRFbmQiOiAiMjAyNi0wNS0xN1QxNjo1MjozMyswMDowMCIsICJvcHRpb25zIjoge30gfQo=";

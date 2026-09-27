@@ -86,66 +86,51 @@ function splitInfo(path){
 }
 
 function buildLibraries(files){
-  // ROMs is a game library, not a list of files that must already have a
-  // recognized emulator extension. Root-level files are individual games;
-  // every folder directly under ROMs is one grouped game (usually split).
   const romFiles=files.filter(x=>/^\/ROMs\//i.test(x.name) && !x.name.endsWith("/"));
-  const portFiles=files.filter(x=>/^\/Ports\//i.test(x.name) && !x.name.endsWith("/") && isPort(x.name));
-
-  const rootGames=[];
-  const folderGroups=new Map();
-
+  const portFiles=files.filter(x=>/^\/Ports\//i.test(x.name) && !x.name.endsWith("/"));
+  const rootGames=[], folderGroups=new Map();
   for(const f of romFiles){
-    const clean=f.name.replace(/^\//,"");
-    const relative=clean.replace(/^ROMs\//i,"");
-    const slash=relative.indexOf("/");
-
-    // A file directly in ROMs/ is an individual game.
-    if(slash===-1){
-      rootGames.push({type:"rom",name:cleanTitle(fileNameOf(f)),path:clean,system:null,parts:null,size:f.size||0,url:CDN_ROOT+encodePath(clean)});
-      continue;
-    }
-
-    // Everything below the first ROMs/ subfolder belongs to that game.
+    const clean=f.name.replace(/^\//,""), relative=clean.replace(/^ROMs\//i,""), slash=relative.indexOf("/");
+    if(slash===-1){rootGames.push({type:"rom",name:cleanTitle(fileNameOf(f)),path:clean,system:null,parts:null,size:f.size||0,url:CDN_ROOT+encodePath(clean)});continue;}
     const folder=relative.slice(0,slash);
     if(!folderGroups.has(folder))folderGroups.set(folder,[]);
     folderGroups.get(folder).push({...f,relative});
   }
-
   const result=[...rootGames];
-
   for(const [folder,parts] of folderGroups){
     parts.sort((a,b)=>a.relative.localeCompare(b.relative,undefined,{numeric:true,sensitivity:"base"}));
-    const folderPath=`ROMs/${folder}`;
     const splitParts=parts.filter(p=>splitInfo(p.name));
-
-    // A ROM folder is represented by one card. If it has split pieces,
-    // preserve the exact piece paths for assembly at launch time.
     if(splitParts.length>=2){
       const ordered=splitParts.slice().sort((a,b)=>splitInfo(a.name).num-splitInfo(b.name).num);
-      const first=ordered[0];
       const last=ordered[ordered.length-1];
-      const inferredExt=ordered.map(p=>splitInfo(p.name).extension).find(e=>e && e!=="isopart") || ext(last.name) || "iso";
-      const virtualName=`${folder}.${inferredExt}`;
-      result.push({
-        type:"rom",name:folder,path:folderPath,system:null,
-        parts:ordered.map(p=>p.name.replace(/^\//,"")),
-        virtualName,size:ordered.reduce((n,p)=>n+(p.size||0),0)
-      });
+      const inferredExt=ordered.map(p=>splitInfo(p.name).extension).find(e=>e&&e!=="isopart")||ext(last.name)||"iso";
+      result.push({type:"rom",name:folder,path:`ROMs/${folder}`,system:null,parts:ordered.map(p=>p.name.replace(/^\//,"")),virtualName:`${folder}.${inferredExt}`,size:ordered.reduce((n,p)=>n+(p.size||0),0)});
     }else{
-      // Non-split folders can contain a normal single ROM. Pick the first
-      // recognized ROM; otherwise still expose the folder so it isn't lost.
-      const candidate=parts.find(p=>guessSystem(fileNameOf(p),p.name));
-      const chosen=candidate||parts[0];
-      result.push({
-        type:"rom",name:folder,path:chosen.name.replace(/^\//,""),system:null,
-        parts:null,size:chosen.size||0,url:CDN_ROOT+encodePath(chosen.name.replace(/^\//,"")),
-        folder:folderPath
-      });
+      const chosen=parts.find(p=>guessSystem(fileNameOf(p),p.name))||parts[0];
+      const path=chosen.name.replace(/^\//,"");
+      result.push({type:"rom",name:folder,path,system:null,parts:null,size:chosen.size||0,url:CDN_ROOT+encodePath(path),folder:`ROMs/${folder}`});
     }
   }
 
-  const p=portFiles.map(f=>{const path=f.name.replace(/^\//,"");return {type:"port",name:cleanTitle(fileNameOf(f)),path,size:f.size||0,url:CDN_ROOT+encodePath(path),rawUrl:RAW_ROOT+encodePath(path)}});
+  const normalPorts=[], splitGroups=new Map();
+  for(const f of portFiles){
+    const name=fileNameOf(f), prefix=f.name.slice(0,f.name.length-name.length);
+    let m=name.match(/^(.*?)(?:[_ .-]?part[_ .-]?)(\d{1,3})(\.html?)$/i);
+    let key, num, outputName;
+    if(m){key=(prefix+m[1]).toLowerCase();num=+m[2];outputName=m[1]+m[3];}
+    else if((m=name.match(/^(.*?\.html?)[_ .-]?part[_ .-]?(\d{1,3})$/i))){key=(prefix+m[1]).toLowerCase();num=+m[2];outputName=m[1];}
+    else if((m=name.match(/^(.*?)(?:\.)(\d{3})$/))){key=(prefix+m[1]+".html").toLowerCase();num=+m[2];outputName=m[1]+".html";}
+    else {if(isPort(f.name))normalPorts.push(f);continue;}
+    if(!splitGroups.has(key))splitGroups.set(key,{outputName,files:[]});
+    splitGroups.get(key).files.push({file:f,num});
+  }
+  const p=normalPorts.map(f=>{const path=f.name.replace(/^\//,"");return {type:"port",name:cleanTitle(fileNameOf(f)),path,size:f.size||0,url:CDN_ROOT+encodePath(path),rawUrl:RAW_ROOT+encodePath(path),parts:null};});
+  for(const group of splitGroups.values()){
+    if(group.files.length<2)continue;
+    group.files.sort((a,b)=>a.num-b.num);
+    const path=group.files[0].file.name.replace(/^\//,"");
+    p.push({type:"port",name:cleanTitle(group.outputName.replace(/\.html?$/i,"")),path,outputName:group.outputName,size:group.files.reduce((n,x)=>n+(x.file.size||0),0),parts:group.files.map(x=>x.file.name.replace(/^\//,"")),url:null,rawUrl:null});
+  }
   return {games:result,ports:p};
 }
 
@@ -213,7 +198,7 @@ function render(){
   for(const g of filtered){
     const c=document.createElement("div"); c.className="card";
     const system=resolveGameSystem(g);
-    c.innerHTML=`<div class="cardTitle">${escapeHTML(g.name)}</div><div class="cardMeta">${escapeHTML(SYSTEMS[system]?.name||system||"ROM")}${g.parts?` · ${g.parts.length} parts`:""}</div><div class="cardActions"><button class="downloadBtn" type="button">Download</button></div>`;
+    c.innerHTML=`<div class="cardTitle">${escapeHTML(g.name)}</div><div class="cardMeta">${escapeHTML(SYSTEMS[system]?.name||system||"ROM")} · ${formatBytes(g.size||0)}${g.parts?` · ${g.parts.length} parts`:""}</div><div class="cardActions"><button class="downloadBtn" type="button">Download</button></div>`;
     c.onclick=()=>playGame(g);
     c.querySelector(".downloadBtn").onclick=(event)=>{event.stopPropagation();downloadGame(g,event.currentTarget)};
     gamesGrid.appendChild(c);
@@ -223,7 +208,7 @@ function render(){
   const fp=ports.filter(p=>!q||(p.name+" "+p.path).toLowerCase().includes(q)).sort((a,b)=>a.name.localeCompare(b.name));
   for(const p of fp){
     const c=document.createElement("div"); c.className="card";
-    c.innerHTML=`<div class="cardTitle">${escapeHTML(p.name)}</div><div class="cardMeta">Port</div><div class="cardActions"><button class="downloadBtn" type="button">Download</button></div>`;
+    c.innerHTML=`<div class="cardTitle">${escapeHTML(p.name)}</div><div class="cardMeta">Port · ${formatBytes(p.size||0)}${p.parts?` · ${p.parts.length} parts`:""}</div><div class="cardActions"><button class="downloadBtn" type="button">Download</button></div>`;
     c.onclick=()=>playPort(p);
     c.querySelector(".downloadBtn").onclick=(event)=>{event.stopPropagation();downloadPort(p,event.currentTarget)};
     portsGrid.appendChild(c);
@@ -397,9 +382,12 @@ async function downloadPort(port,button){
   try{
     button.disabled=true;
     button.textContent="Downloading...";
-    const blob=await fetchDownloadBlob([port.url,port.rawUrl]);
+    if(port.parts?.length && port.parts.length > 40){
+      throw new Error(`This port has ${port.parts.length} parts. Split ports are limited to 40 parts.`);
+    }
+    const blob=port.parts?.length ? await fetchParts(port.parts) : await fetchDownloadBlob([port.url,port.rawUrl]);
     const directory=await getDownloadDirectory("port");
-    const fileName=fileNameOf({name:port.path}) || `${port.name}.html`;
+    const fileName=port.outputName || fileNameOf({name:port.path}) || `${port.name}.html`;
     await writeBlobToDirectory(directory,fileName,blob);
     button.textContent="Saved ✓";
   }catch(error){
@@ -605,7 +593,11 @@ async function playPort(p){
   portFrame.hidden = false;
   player.classList.remove("hidden");
 
-  if(!/\.html?$/i.test(p.path)){
+  // Split ports use piece filenames such as Game.part01.html,
+  // Game.html.part01, or Game.001. They are assembled into one HTML
+  // document before launch, so only normal (non-split) ports need the
+  // .html filename check.
+  if(!p.parts?.length && !/\.html?$/i.test(p.path)){
     alert("This port is not an HTML file.");
     portFrame.hidden = true;
     return;
@@ -624,33 +616,36 @@ async function playPort(p){
   const JSDELIVR_LIMIT = 20 * 1024 * 1024;
 
   try{
-    if((p.size || 0) <= JSDELIVR_LIMIT){
+    if(!p.parts?.length && (p.size || 0) <= JSDELIVR_LIMIT){
       portFrame.src = p.url;
       return;
     }
 
-    statusElement.innerHTML =
-      `<strong>Loading large port...</strong> ${escapeHTML(p.name)} ` +
-      `<span class="progress">(GitHub raw fallback)</span>`;
-
-    const response = await fetch(p.rawUrl, {
-      cache: "no-store"
-    });
-
-    if(!response.ok){
-      throw new Error(
-        `GitHub raw request failed (${response.status}) for ${p.name}.`
-      );
+    let html;
+    if(p.parts?.length){
+      if(p.parts.length > 40){
+        throw new Error(`This port has ${p.parts.length} parts. Split ports are limited to 40 parts.`);
+      }
+      statusElement.innerHTML = `<strong>Loading split port...</strong> ${escapeHTML(p.name)} <span class="progress">Downloading ${p.parts.length}/40 parts...</span>`;
+      html = await (await fetchParts(p.parts)).text();
+    }else{
+      statusElement.innerHTML = `<strong>Loading large port...</strong> ${escapeHTML(p.name)} <span class="progress">(GitHub raw fallback)</span>`;
+      const response = await fetch(p.rawUrl,{cache:"no-store"});
+      if(!response.ok) throw new Error(`GitHub raw request failed (${response.status}) for ${p.name}.`);
+      html = await response.text();
     }
-
-    let html = await response.text();
 
     /*
         Make every relative URL in the HTML resolve against the port's
         original GitHub directory after the HTML becomes a Blob.
+
+        Split ports intentionally have rawUrl === null because there is
+        no single source file URL. Use the first split piece instead.
     */
-    const slash = p.rawUrl.lastIndexOf("/");
-    const baseURL = p.rawUrl.slice(0, slash + 1);
+    const basePath = p.parts?.length ? p.parts[0] : p.path;
+    const baseRawUrl = RAW_ROOT + encodePath(basePath.replace(/^\//,""));
+    const slash = baseRawUrl.lastIndexOf("/");
+    const baseURL = baseRawUrl.slice(0, slash + 1);
 
     const baseTag = `<base href="${baseURL.replace(/"/g, "&quot;")}">`;
 

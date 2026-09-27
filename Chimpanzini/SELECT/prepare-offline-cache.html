@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Prepare Offline Cache</title>
+<style>
+    body{
+        font-family: system-ui, sans-serif;
+        background:#0b0d10;
+        color:#f2f4f7;
+        max-width:700px;
+        margin:40px auto;
+        padding:0 20px;
+        line-height:1.5;
+    }
+    h1{ font-size:20px; }
+    button{
+        font:inherit;
+        padding:12px 18px;
+        background:#7c5cff;
+        color:#fff;
+        border:none;
+        border-radius:8px;
+        cursor:pointer;
+    }
+    button:disabled{ opacity:.5; cursor:default; }
+    #log{
+        margin-top:20px;
+        padding:14px;
+        background:#12151b;
+        border:1px solid #282e38;
+        border-radius:8px;
+        white-space:pre-wrap;
+        font-family:ui-monospace,monospace;
+        font-size:13px;
+        max-height:400px;
+        overflow:auto;
+    }
+    #bar{
+        height:8px;
+        background:#282e38;
+        border-radius:4px;
+        overflow:hidden;
+        margin-top:10px;
+    }
+    #barFill{
+        height:100%;
+        width:0%;
+        background:#7c5cff;
+    }
+</style>
+</head>
+<body>
+
+<h1>Prepare Offline Cache</h1>
+
+<p>
+    Run this once (or again any time you add/replace files in the
+    <b>data</b> folder). It copies everything the emulator needs into a
+    <b>data-cache</b> folder next to it, so that <b>index.html</b> can
+    load it directly from disk with no server of any kind.
+</p>
+
+<p>
+    Select the <b>project's root folder</b> - the one that directly
+    contains <b>index.html</b> and the <b>data</b> folder (this is the
+    same folder you'd normally pick "SELECT" inside of - one level up
+    from that).
+</p>
+
+<button id="start">Select project folder and build cache</button>
+
+<div id="bar" hidden><div id="barFill"></div></div>
+<div id="log"></div>
+
+<script>
+const startButton = document.getElementById("start");
+const logEl = document.getElementById("log");
+const barEl = document.getElementById("bar");
+const barFillEl = document.getElementById("barFill");
+
+// Sourcemaps are only useful for devtools debugging and can be large;
+// skip them, nothing at runtime needs them.
+const SKIP_SUFFIXES = [".map"];
+
+function log(line){
+    logEl.textContent += line + "\n";
+    logEl.scrollTop = logEl.scrollHeight;
+}
+
+function shouldSkip(name){
+    return SKIP_SUFFIXES.some(suffix => name.endsWith(suffix));
+}
+
+// Base64-encode in chunks so we never build one giant intermediate
+// string for very large files.
+function bytesToBase64(bytes){
+    const CHUNK = 0x8000;
+    let binary = "";
+    for(let i = 0; i < bytes.length; i += CHUNK){
+        const slice = bytes.subarray(i, i + CHUNK);
+        binary += String.fromCharCode.apply(null, slice);
+    }
+    return btoa(binary);
+}
+
+async function getOrCreateDir(parent, parts){
+    let dir = parent;
+    for(const part of parts){
+        dir = await dir.getDirectoryHandle(part, { create:true });
+    }
+    return dir;
+}
+
+async function writeCacheFile(cacheRoot, relPath, base64){
+    const parts = relPath.split("/");
+    const filename = parts.pop() + ".js";
+    const dir = parts.length ? await getOrCreateDir(cacheRoot, parts) : cacheRoot;
+
+    const fileHandle = await dir.getFileHandle(filename, { create:true });
+    const writable = await fileHandle.createWritable();
+
+    const escaped = JSON.stringify(relPath);
+    await writable.write(
+        `(window.__EJS_OFFLINE_CACHE__=window.__EJS_OFFLINE_CACHE__||{})[${escaped}]=${JSON.stringify(base64)};\n`
+    );
+    await writable.close();
+}
+
+async function collectFiles(dirHandle, relPath, out){
+    for await(const [name, entry] of dirHandle.entries()){
+        const currentRel = relPath ? relPath + "/" + name : name;
+        if(entry.kind === "directory"){
+            await collectFiles(entry, currentRel, out);
+        } else if(entry.kind === "file"){
+            if(shouldSkip(name)) continue;
+            out.push({ handle: entry, relPath: currentRel });
+        }
+    }
+}
+
+startButton.onclick = async () => {
+    startButton.disabled = true;
+    logEl.textContent = "";
+    barEl.hidden = false;
+
+    try {
+        if(!("showDirectoryPicker" in window)){
+            log("This browser doesn't support the folder picker. Use a recent Chrome or Edge.");
+            return;
+        }
+
+        log("Pick the project's root folder (contains index.html + data)...");
+        const root = await window.showDirectoryPicker({ mode: "readwrite" });
+
+        let dataDir;
+        try {
+            dataDir = await root.getDirectoryHandle("data");
+        } catch(e){
+            log("Could not find a 'data' folder inside what you selected.");
+            log("Make sure you picked the folder that directly contains index.html.");
+            return;
+        }
+
+        const cacheDir = await root.getDirectoryHandle("data-cache", { create:true });
+
+        log("Scanning data/ ...");
+        const files = [];
+        await collectFiles(dataDir, "", files);
+        log(`Found ${files.length} files to process.`);
+
+        let done = 0;
+        let totalBytes = 0;
+
+        for(const { handle, relPath } of files){
+            const file = await handle.getFile();
+            const buffer = await file.arrayBuffer();
+            const bytes = new Uint8Array(buffer);
+            const base64 = bytesToBase64(bytes);
+
+            await writeCacheFile(cacheDir, relPath, base64);
+
+            done++;
+            totalBytes += bytes.length;
+            barFillEl.style.width = Math.round((done / files.length) * 100) + "%";
+
+            if(done % 10 === 0 || done === files.length){
+                log(`(${done}/${files.length}) ${relPath}`);
+            }
+        }
+
+        log("");
+        log(`Done. Cached ${done} files, ${(totalBytes / (1024*1024)).toFixed(1)} MB total.`);
+        log("You can now open index.html directly - no server needed.");
+        log("Re-run this tool any time you change files inside data/.");
+
+    } catch(err){
+        if(err && err.name === "AbortError"){
+            log("Cancelled.");
+        } else {
+            log("Error: " + (err && err.message ? err.message : String(err)));
+            console.error(err);
+        }
+    } finally {
+        startButton.disabled = false;
+    }
+};
+</script>
+
+</body>
+</html>

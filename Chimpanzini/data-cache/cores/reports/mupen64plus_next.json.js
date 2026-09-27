@@ -1,0 +1,1 @@
+(window.__EJS_OFFLINE_CACHE__=window.__EJS_OFFLINE_CACHE__||{})["cores/reports/mupen64plus_next.json"]="eyAiY29yZSI6ICJtdXBlbjY0cGx1c19uZXh0IiwgImJ1aWxkU3RhcnQiOiAiMjAyNi0wNS0xN1QxNzowMDozNCswMDowMCIsICJidWlsZEVuZCI6ICIyMDI2LTA1LTE3VDE3OjAzOjA2KzAwOjAwIiwgIm9wdGlvbnMiOiB7ICJkZWZhdWx0V2ViR0wyIjogdHJ1ZSB9IH0K";

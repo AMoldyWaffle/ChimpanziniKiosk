@@ -1,0 +1,1 @@
+(window.__EJS_OFFLINE_CACHE__=window.__EJS_OFFLINE_CACHE__||{})["cores/reports/crocods.json"]="eyAiY29yZSI6ICJjcm9jb2RzIiwgImJ1aWxkU3RhcnQiOiAiMjAyNi0wNS0xN1QxNzozMDo1OCswMDowMCIsICJidWlsZEVuZCI6ICIyMDI2LTA1LTE3VDE3OjMxOjI5KzAwOjAwIiwgIm9wdGlvbnMiOiB7fSB9Cg==";

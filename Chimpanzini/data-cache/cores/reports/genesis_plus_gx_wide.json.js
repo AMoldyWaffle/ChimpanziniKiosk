@@ -1,0 +1,1 @@
+(window.__EJS_OFFLINE_CACHE__=window.__EJS_OFFLINE_CACHE__||{})["cores/reports/genesis_plus_gx_wide.json"]="eyAiY29yZSI6ICJnZW5lc2lzX3BsdXNfZ3hfd2lkZSIsICJidWlsZFN0YXJ0IjogIjIwMjYtMDUtMTdUMTc6MTA6MDYrMDA6MDAiLCAiYnVpbGRFbmQiOiAiMjAyNi0wNS0xN1QxNzoxMDozNSswMDowMCIsICJvcHRpb25zIjoge30gfQo=";

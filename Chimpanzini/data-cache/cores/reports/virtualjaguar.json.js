@@ -1,0 +1,1 @@
+(window.__EJS_OFFLINE_CACHE__=window.__EJS_OFFLINE_CACHE__||{})["cores/reports/virtualjaguar.json"]="eyAiY29yZSI6ICJ2aXJ0dWFsamFndWFyIiwgImJ1aWxkU3RhcnQiOiAiMjAyNi0wNS0xN1QxNzoxMTozNyswMDowMCIsICJidWlsZEVuZCI6ICIyMDI2LTA1LTE3VDE3OjEyOjE1KzAwOjAwIiwgIm9wdGlvbnMiOiB7fSB9Cg==";

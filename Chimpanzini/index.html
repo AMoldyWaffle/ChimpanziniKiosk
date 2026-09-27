@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Lets this page run fully offline via file:// - see data/offline-shim.js -->
 <script src="data/offline-shim.js"></script>
 
 <title>CHIMPANZINI PANANINI</title>
@@ -68,12 +69,16 @@ header{
     position:sticky;
     top:0;
     z-index:20;
+
     display:flex;
     align-items:center;
     gap:18px;
+
     padding:18px 24px;
+
     background:rgba(11,13,16,.94);
     border-bottom:1px solid var(--border);
+
     backdrop-filter:blur(10px);
 }
 
@@ -92,11 +97,15 @@ header{
 
 #search{
     width:100%;
+
     padding:11px 15px;
+
     color:var(--text);
     background:var(--panel);
+
     border:1px solid var(--border);
     border-radius:8px;
+
     outline:none;
 }
 
@@ -111,10 +120,13 @@ header{
 
 .btn{
     padding:10px 14px;
+
     color:var(--text);
     background:var(--panel);
+
     border:1px solid var(--border);
     border-radius:7px;
+
     transition:
         background .15s,
         border-color .15s;
@@ -147,9 +159,12 @@ main{
 .status{
     margin-bottom:20px;
     padding:14px 16px;
+
     background:var(--panel);
+
     border:1px solid var(--border);
     border-radius:9px;
+
     color:var(--muted);
     font-size:14px;
 }
@@ -166,15 +181,19 @@ main{
     display:flex;
     flex-wrap:wrap;
     gap:8px;
+
     margin-bottom:25px;
 }
 
 .chip{
     padding:7px 11px;
+
     color:var(--muted);
     background:var(--panel);
+
     border:1px solid var(--border);
     border-radius:20px;
+
     font-size:13px;
 }
 
@@ -194,15 +213,19 @@ main{
 
 .sectionTitle{
     margin:30px 0 13px;
+
     color:var(--muted);
+
     font-size:18px;
     font-weight:700;
 }
 
 .grid{
     display:grid;
+
     grid-template-columns:
         repeat(auto-fill, minmax(190px, 1fr));
+
     gap:12px;
 }
 
@@ -213,11 +236,15 @@ main{
 .card{
     min-height:100px;
     padding:15px;
+
     color:var(--text);
     text-align:left;
+
     background:var(--panel);
+
     border:1px solid var(--border);
     border-radius:9px;
+
     transition:
         transform .12s,
         background .12s,
@@ -226,6 +253,7 @@ main{
 
 .card:hover{
     transform:translateY(-2px);
+
     background:var(--panel2);
     border-color:#3b424e;
 }
@@ -237,15 +265,20 @@ main{
 
 .cardMeta{
     margin-top:8px;
+
     color:var(--muted);
+
     font-size:12px;
 }
 
 .empty{
     padding:30px;
+
     color:var(--muted);
     text-align:center;
+
     background:var(--panel);
+
     border:1px dashed var(--border);
     border-radius:9px;
 }
@@ -257,7 +290,9 @@ main{
 #player{
     position:fixed;
     inset:0;
+
     z-index:100;
+
     background:#000;
 }
 
@@ -268,6 +303,7 @@ main{
 #game{
     position:absolute;
     inset:0;
+
     width:100%;
     height:100%;
 }
@@ -275,25 +311,34 @@ main{
 #portFrame{
     position:absolute;
     inset:0;
+
     width:100%;
     height:100%;
+
     border:0;
+
     background:#000;
 }
 
 .playerBar{
     position:absolute;
+
     top:15px;
     left:15px;
+
     z-index:10;
+
     display:flex;
     gap:8px;
 }
 
 .playerButton{
     padding:9px 13px;
+
     color:white;
+
     background:rgba(20,20,25,.88);
+
     border:1px solid #3a3a44;
     border-radius:7px;
 }
@@ -332,7 +377,6 @@ main{
     }
 }
 </style>
-
 </head>
 
 <body>
@@ -346,14 +390,12 @@ main{
     </div>
 
     <div class="searchWrap">
-
         <input
             id="search"
             type="search"
             placeholder="Search games..."
             autocomplete="off"
         >
-
     </div>
 
     <div class="headerButtons">
@@ -369,12 +411,13 @@ main{
             id="onlineLibrary"
             class="btn"
         >
-            Update Latest Version
+            Use ChimpanziniKiosk Online
         </button>
 
     </div>
 
 </header>
+
 
 <main>
 
@@ -386,6 +429,7 @@ main{
         Click "Choose SELECT Folder" and select your
         <b>SELECT</b> folder.
     </div>
+
 
     <div
         id="filters"
@@ -401,6 +445,7 @@ main{
 
     </div>
 
+
     <!-- ROMS -->
 
     <section>
@@ -415,6 +460,7 @@ main{
         ></div>
 
     </section>
+
 
     <!-- PORTS -->
 
@@ -480,476 +526,40 @@ const CONFIG = {
 
     title: "CHIMPANZINI PANANINI",
 
+    /*
+        The one folder the user selects.
+    */
     selectFolder: "SELECT",
 
+    /*
+        Folders inside SELECT.
+    */
     romFolder: "ROMs",
 
     portFolder: "Ports",
 
     saveFolder: "Saves",
 
-    emulatorData:
-        /[\/\\]SELECT[\/\\]/i.test(location.pathname)
-            ? "../data/"
-            : "./data/",
-
-    autosaveIntervalMs: 20000
-
-};
-
-
-/* =========================================================
-   GITHUB LATEST VERSION UPDATER
-========================================================= */
-
-const UPDATE_CONFIG = {
-
-    repository:
-        "AMoldyWaffle/ChimpanziniKiosk",
-
-    branch:
-        "main",
-
-    folder:
-        "LatestVersion",
-
-    files: {
-
-        index:
-            "index.html",
-
-        kiosk:
-            "ChimpanziniKiosk.html"
-
-    }
-
-};
-
-
-/*
-    Raw GitHub base.
-
-    These are the files we download:
-
-        LatestVersion/index.html
-        LatestVersion/ChimpanziniKiosk.html
-*/
-function getUpdateURL(fileName){
-
-    return (
-        "https://raw.githubusercontent.com/" +
-        UPDATE_CONFIG.repository +
-        "/" +
-        UPDATE_CONFIG.branch +
-        "/" +
-        UPDATE_CONFIG.folder +
-        "/" +
-        fileName +
-        "?update=" +
-        Date.now()
-    );
-
-}
-
-
-/*
-    Read a text file from GitHub.
-*/
-async function downloadUpdateFile(fileName){
-
-    const url =
-        getUpdateURL(fileName);
-
-    const response =
-        await fetch(
-            url,
-            {
-                method:"GET",
-                cache:"no-store"
-            }
-        );
-
-    if(!response.ok){
-
-        throw new Error(
-            "GitHub returned HTTP " +
-            response.status +
-            " while downloading " +
-            UPDATE_CONFIG.folder +
-            "/" +
-            fileName
-        );
-
-    }
-
-    const text =
-        await response.text();
+    /*
+        EmulatorJS official CDN.
+    */
+    // EmulatorJS data is beside the launcher at the root, or one level
+    // above when this launcher is opened from the SELECT folder.
+    emulatorData: /[\\/]SELECT[\\/]/i.test(location.pathname)
+        ? "../data/"
+        : "./data/",
 
     /*
-        Prevent accidentally saving a GitHub error page
-        as an HTML application.
+        How often (in milliseconds) EmulatorJS is forced to flush the
+        current battery/SRAM save to disk while a game is running.
+
+        This is passed to EJS_fixedSaveInterval, which (per EmulatorJS)
+        also locks the "save interval" option out of the in-game
+        settings menu, so autosave can't be silently turned off from
+        inside the player.
     */
-    if(
-        !text ||
-        text.trim().length < 20
-    ){
-
-        throw new Error(
-            "GitHub returned an empty file for " +
-            fileName
-        );
-
-    }
-
-    return text;
-
-}
-
-
-/*
-    Write text to a file inside a directory.
-*/
-async function writeTextFile(
-    directory,
-    fileName,
-    contents
-){
-
-    const fileHandle =
-        await directory.getFileHandle(
-            fileName,
-            {
-                create:true
-            }
-        );
-
-    const writable =
-        await fileHandle.createWritable();
-
-    try{
-
-        await writable.write(
-            contents
-        );
-
-        await writable.close();
-
-    }catch(error){
-
-        try{
-            await writable.abort();
-        }catch(_){}
-
-        throw error;
-
-    }
-
-}
-
-
-/*
-    Get the project root.
-
-    IMPORTANT:
-
-    The normal SELECT handle points at:
-
-        Project/SELECT
-
-    It cannot write:
-
-        Project/index.html
-
-    because the browser does not provide a "parent directory"
-    operation.
-
-    Therefore the updater asks for the project folder once.
-*/
-async function chooseProjectRoot(){
-
-    if(
-        !("showDirectoryPicker" in window)
-    ){
-
-        throw new Error(
-            "Your browser does not support the File System Access API. " +
-            "Use a Chromium-based browser such as Chrome, Edge, or Opera."
-        );
-
-    }
-
-    const root =
-        await window.showDirectoryPicker({
-            mode:"readwrite"
-        });
-
-    return root;
-
-}
-
-
-/*
-    Verify that the selected folder actually contains
-    the expected SELECT folder.
-*/
-async function verifyProjectRoot(root){
-
-    try{
-
-        await root.getFileHandle(
-            "index.html"
-        );
-
-    }catch(error){
-
-        throw new Error(
-            'The selected folder does not contain "index.html". ' +
-            'Please select the CHIMPANZINI PANANINI project folder.'
-        );
-
-    }
-
-    try{
-
-        await root.getDirectoryHandle(
-            "SELECT"
-        );
-
-    }catch(error){
-
-        throw new Error(
-            'The selected folder does not contain a "SELECT" folder. ' +
-            'Please select the CHIMPANZINI PANANINI project folder.'
-        );
-
-    }
-
-}
-
-
-/*
-    Main update function.
-*/
-async function updateLatestVersion(){
-
-    const originalText =
-        onlineLibraryButton.textContent;
-
-    try{
-
-        /*
-            Disable the button so the user cannot start
-            two updates simultaneously.
-        */
-
-        onlineLibraryButton.disabled = true;
-
-        onlineLibraryButton.textContent =
-            "Choose Project Folder...";
-
-        statusElement.innerHTML = `
-            <strong>Latest Version Update</strong>
-            <br><br>
-            Select the main
-            <b>CHIMPANZINI PANANINI</b>
-            project folder.
-            <br><br>
-            This is the folder containing:
-            <b>index.html</b>
-            and
-            <b>SELECT</b>.
-        `;
-
-        /*
-            Get writable project root.
-        */
-
-        const projectRoot =
-            await chooseProjectRoot();
-
-        /*
-            Verify it before downloading anything.
-        */
-
-        await verifyProjectRoot(
-            projectRoot
-        );
-
-        /*
-            Find SELECT.
-        */
-
-        const selectFolder =
-            await projectRoot.getDirectoryHandle(
-                "SELECT"
-            );
-
-        /*
-            Download both files BEFORE replacing
-            anything.
-
-            This is important.
-
-            If one download fails, the existing local
-            files are left untouched.
-        */
-
-        statusElement.innerHTML = `
-            <strong>Downloading latest version...</strong>
-            <br><br>
-            Downloading
-            <b>LatestVersion/index.html</b>
-        `;
-
-        const latestIndex =
-            await downloadUpdateFile(
-                UPDATE_CONFIG.files.index
-            );
-
-
-        statusElement.innerHTML = `
-            <strong>Downloading latest version...</strong>
-            <br><br>
-            Downloading
-            <b>LatestVersion/ChimpanziniKiosk.html</b>
-        `;
-
-        const latestKiosk =
-            await downloadUpdateFile(
-                UPDATE_CONFIG.files.kiosk
-            );
-
-
-        /*
-            Both downloads succeeded.
-
-            Now replace the local files.
-        */
-
-        statusElement.innerHTML = `
-            <strong>Installing latest version...</strong>
-            <br><br>
-            Replacing
-            <b>index.html</b>
-            and
-            <b>SELECT/ChimpanziniKiosk.html</b>
-        `;
-
-
-        /*
-            Replace root index.html.
-        */
-
-        await writeTextFile(
-            projectRoot,
-            "index.html",
-            latestIndex
-        );
-
-
-        /*
-            Replace SELECT/ChimpanziniKiosk.html.
-        */
-
-        await writeTextFile(
-            selectFolder,
-            "ChimpanziniKiosk.html",
-            latestKiosk
-        );
-
-
-        /*
-            Give the browser a moment to finish the filesystem
-            operation before reloading.
-        */
-
-        statusElement.innerHTML = `
-            <strong>Update complete!</strong>
-            <br><br>
-            The latest
-            <b>index.html</b>
-            and
-            <b>ChimpanziniKiosk.html</b>
-            have been installed.
-            <br><br>
-            Reloading...
-        `;
-
-
-        await new Promise(
-            resolve =>
-                setTimeout(
-                    resolve,
-                    700
-                )
-        );
-
-
-        /*
-            Reload the launcher.
-
-            The browser will now load the newly written
-            index.html.
-        */
-
-        location.reload();
-
-    }catch(error){
-
-        console.error(
-            "Latest Version update failed:",
-            error
-        );
-
-
-        if(
-            error &&
-            error.name === "AbortError"
-        ){
-
-            statusElement.innerHTML = `
-                <strong>Update cancelled.</strong>
-                <br><br>
-                No files were changed.
-            `;
-
-            return;
-
-        }
-
-
-        statusElement.innerHTML = `
-            <strong>Update failed.</strong>
-            <br><br>
-            ${escapeHTML(
-                error.message ||
-                String(error)
-            )}
-            <br><br>
-            <b>No local files were intentionally replaced
-            unless both GitHub downloads completed.</b>
-        `;
-
-
-        alert(
-            "Latest Version update failed:\n\n" +
-            (
-                error.message ||
-                String(error)
-            )
-        );
-
-    }finally{
-
-        onlineLibraryButton.disabled =
-            false;
-
-        onlineLibraryButton.textContent =
-            originalText;
-
-    }
-
-}
+    autosaveIntervalMs: 20000
+};
 
 
 /* =========================================================
@@ -1101,22 +711,39 @@ const SYSTEMS = {
 ========================================================= */
 
 let selectDirectory = null;
+
 let romDirectory = null;
+
 let portsDirectory = null;
+
 let saveDirectory = null;
 
 let games = [];
+
 let ports = [];
 
 let activeSystem = "all";
+
 let activeBlobUrl = null;
 
+/*
+    Lets leaveGame() (the "<- Back" button) wait for an in-flight
+    autosave write to actually finish before it reloads the page -
+    otherwise a save triggered right before leaving could be
+    abandoned mid-write. See armPendingAutosaveWait() below.
+*/
 let pendingAutosaveResolve = null;
 let pendingAutosavePromise = null;
 
 
 /* =========================================================
-   REMEMBER / RESTORE SELECT FOLDER
+   REMEMBER / RESTORE SELECT FOLDER (IndexedDB)
+
+   The browser can keep letting us use a folder we've already
+   been granted access to, even after location.reload(). We
+   just have to hang on to the FileSystemDirectoryHandle
+   ourselves (in IndexedDB, since a plain JS variable doesn't
+   survive a reload) and re-check permission on startup.
 ========================================================= */
 
 const HANDLE_DB_NAME =
@@ -1127,7 +754,6 @@ const HANDLE_STORE =
 
 const HANDLE_KEY =
     "selectFolder";
-
 
 function openHandleDB(){
 
@@ -1160,7 +786,6 @@ function openHandleDB(){
 
 }
 
-
 async function rememberSelectFolder(handle){
 
     try{
@@ -1178,13 +803,9 @@ async function rememberSelectFolder(handle){
                     );
 
                 tx.objectStore(HANDLE_STORE)
-                    .put(
-                        handle,
-                        HANDLE_KEY
-                    );
+                    .put(handle, HANDLE_KEY);
 
-                tx.oncomplete =
-                    resolve;
+                tx.oncomplete = resolve;
 
                 tx.onerror = () =>
                     reject(tx.error);
@@ -1194,6 +815,12 @@ async function rememberSelectFolder(handle){
 
     }catch(error){
 
+        /*
+            Not fatal - the app just falls back to manual
+            folder selection next time if this couldn't
+            be saved.
+        */
+
         console.warn(
             "Could not remember SELECT folder.",
             error
@@ -1202,7 +829,6 @@ async function rememberSelectFolder(handle){
     }
 
 }
-
 
 async function getRememberedSelectFolder(){
 
@@ -1222,20 +848,13 @@ async function getRememberedSelectFolder(){
 
                 const request =
                     tx.objectStore(HANDLE_STORE)
-                        .get(
-                            HANDLE_KEY
-                        );
+                        .get(HANDLE_KEY);
 
                 request.onsuccess = () =>
-                    resolve(
-                        request.result ||
-                        null
-                    );
+                    resolve(request.result || null);
 
                 request.onerror = () =>
-                    reject(
-                        request.error
-                    );
+                    reject(request.error);
 
             }
         );
@@ -1253,7 +872,6 @@ async function getRememberedSelectFolder(){
 
 }
 
-
 async function forgetSelectFolder(){
 
     try{
@@ -1261,39 +879,35 @@ async function forgetSelectFolder(){
         const db =
             await openHandleDB();
 
-        db.transaction(
-            HANDLE_STORE,
-            "readwrite"
-        )
-        .objectStore(
-            HANDLE_STORE
-        )
-        .delete(
-            HANDLE_KEY
-        );
+        db.transaction(HANDLE_STORE, "readwrite")
+            .objectStore(HANDLE_STORE)
+            .delete(HANDLE_KEY);
 
     }catch(error){
 
-        // Ignore.
+        // Ignore - nothing to clean up.
 
     }
 
 }
 
+/*
+    On startup (including right after leaveGame's reload),
+    try to reconnect to the last SELECT folder without making
+    the user browse for it again.
 
-/* =========================================================
-   RESTORE SELECT FOLDER
-========================================================= */
-
+    If the browser still remembers granting permission, this
+    reconnects completely silently. Otherwise it shows a single
+    "Reconnect Folder" button - one click, no folder browsing -
+    instead of the full picker.
+*/
 async function tryRestoreSelectFolder(){
 
     if(
         !("indexedDB" in window) ||
         !("showDirectoryPicker" in window)
     ){
-
         return;
-
     }
 
     const handle =
@@ -1323,14 +937,11 @@ async function tryRestoreSelectFolder(){
 
     }
 
-
     if(permission === "granted"){
 
         try{
 
-            await connectSelectFolder(
-                handle
-            );
+            await connectSelectFolder(handle);
 
         }catch(error){
 
@@ -1347,7 +958,6 @@ async function tryRestoreSelectFolder(){
 
     }
 
-
     statusElement.innerHTML = `
 
         <strong>
@@ -1356,70 +966,60 @@ async function tryRestoreSelectFolder(){
 
         <br><br>
 
-        <button
-            id="reconnectFolder"
-            class="btn primary"
-        >
+        <button id="reconnectFolder" class="btn primary">
             Reconnect Folder
         </button>
 
     `;
-
 
     const reconnectButton =
         document.getElementById(
             "reconnectFolder"
         );
 
-
     if(reconnectButton){
 
-        reconnectButton.onclick =
-            async () => {
+        reconnectButton.onclick = async () => {
 
-                try{
+            try{
 
-                    const granted =
-                        await handle.requestPermission({
-                            mode:"readwrite"
-                        });
+                const granted =
+                    await handle.requestPermission({
+                        mode:"readwrite"
+                    });
 
-                    if(granted !== "granted"){
-                        return;
-                    }
-
-                    await connectSelectFolder(
-                        handle
-                    );
-
-                }catch(error){
-
-                    console.error(
-                        "Could not reconnect SELECT folder.",
-                        error
-                    );
-
-                    await forgetSelectFolder();
-
-                    statusElement.innerHTML = `
-
-                        <strong>
-                            No folder selected.
-                        </strong>
-
-                        Click
-                        <b>Choose SELECT Folder</b>
-                        and select:
-
-                        <b>
-                            ${escapeHTML(CONFIG.title)}/SELECT
-                        </b>
-
-                    `;
-
+                if(granted !== "granted"){
+                    return;
                 }
 
-            };
+                await connectSelectFolder(handle);
+
+            }catch(error){
+
+                console.error(
+                    "Could not reconnect SELECT folder.",
+                    error
+                );
+
+                await forgetSelectFolder();
+
+                statusElement.innerHTML = `
+
+                    <strong>No folder selected.</strong>
+
+                    Click
+
+                    <b>Choose SELECT Folder</b>
+
+                    and select:
+
+                    <b>${escapeHTML(CONFIG.title)}/SELECT</b>
+
+                `;
+
+            }
+
+        };
 
     }
 
@@ -1431,64 +1031,40 @@ async function tryRestoreSelectFolder(){
 ========================================================= */
 
 const chooseFolderButton =
-    document.getElementById(
-        "chooseFolder"
-    );
+    document.getElementById("chooseFolder");
 
 const onlineLibraryButton =
-    document.getElementById(
-        "onlineLibrary"
-    );
+    document.getElementById("onlineLibrary");
 
 const statusElement =
-    document.getElementById(
-        "status"
-    );
+    document.getElementById("status");
 
 const gamesGrid =
-    document.getElementById(
-        "gamesGrid"
-    );
+    document.getElementById("gamesGrid");
 
 const portsGrid =
-    document.getElementById(
-        "portsGrid"
-    );
+    document.getElementById("portsGrid");
 
 const portsSection =
-    document.getElementById(
-        "portsSection"
-    );
+    document.getElementById("portsSection");
 
 const filtersElement =
-    document.getElementById(
-        "filters"
-    );
+    document.getElementById("filters");
 
 const searchElement =
-    document.getElementById(
-        "search"
-    );
+    document.getElementById("search");
 
 const player =
-    document.getElementById(
-        "player"
-    );
+    document.getElementById("player");
 
 const gameElement =
-    document.getElementById(
-        "game"
-    );
+    document.getElementById("game");
 
 const portFrame =
-    document.getElementById(
-        "portFrame"
-    );
+    document.getElementById("portFrame");
 
 const backButton =
-    document.getElementById(
-        "backButton"
-    );
+    document.getElementById("backButton");
 
 
 /* =========================================================
@@ -1505,7 +1081,6 @@ function getExtension(name){
     }
 
     return parts.pop();
-
 }
 
 
@@ -1516,23 +1091,17 @@ function cleanTitle(name){
 
     let title =
         name.replace(
-            new RegExp(
-                "\\." +
-                extension +
-                "$",
-                "i"
-            ),
+            new RegExp("\\." + extension + "$","i"),
             ""
         );
 
     title =
         title.replace(
-            /[\_-]+/g,
+            /[_-]+/g,
             " "
         );
 
     return title.trim();
-
 }
 
 
@@ -1546,7 +1115,6 @@ function isPortName(name){
         extension === "htm" ||
         extension === "b64"
     );
-
 }
 
 
@@ -1554,10 +1122,7 @@ function isPortName(name){
    GUESS SYSTEM
 ========================================================= */
 
-function guessSystem(
-    fileName,
-    path=""
-){
+function guessSystem(fileName, path=""){
 
     const extension =
         getExtension(fileName);
@@ -1570,9 +1135,7 @@ function guessSystem(
         lowerPath.includes("gba") ||
         lowerPath.includes("game boy advance")
     ){
-
         return "gba";
-
     }
 
 
@@ -1580,9 +1143,7 @@ function guessSystem(
         lowerPath.includes("gbc") ||
         lowerPath.includes("game boy color")
     ){
-
         return "gbc";
-
     }
 
 
@@ -1590,9 +1151,7 @@ function guessSystem(
         lowerPath.includes("n64") ||
         lowerPath.includes("nintendo 64")
     ){
-
         return "n64";
-
     }
 
 
@@ -1600,9 +1159,7 @@ function guessSystem(
         lowerPath.includes("snes") ||
         lowerPath.includes("super nintendo")
     ){
-
         return "snes";
-
     }
 
 
@@ -1610,9 +1167,7 @@ function guessSystem(
         lowerPath.includes("nes") ||
         lowerPath.includes("nintendo entertainment")
     ){
-
         return "nes";
-
     }
 
 
@@ -1621,9 +1176,7 @@ function guessSystem(
         lowerPath.includes("psx") ||
         lowerPath.includes("playstation")
     ){
-
         return "psx";
-
     }
 
 
@@ -1647,16 +1200,13 @@ function guessSystem(
                 extension
             )
         ){
-
             return id;
-
         }
 
     }
 
 
     return null;
-
 }
 
 
@@ -1664,10 +1214,7 @@ function guessSystem(
    CREATE GAME
 ========================================================= */
 
-function makeGame(
-    fileName,
-    path
-){
+function makeGame(fileName,path){
 
     const system =
         guessSystem(
@@ -1681,22 +1228,15 @@ function makeGame(
 
     return {
 
-        name:
-            cleanTitle(
-                fileName
-            ),
+        name:cleanTitle(fileName),
 
-        fileName:
-            fileName,
+        fileName:fileName,
 
-        path:
-            path,
+        path:path,
 
-        system:
-            system
+        system:system
 
     };
-
 }
 
 
@@ -1725,7 +1265,6 @@ function hashId(text){
     return String(
         Math.abs(hash)
     );
-
 }
 
 
@@ -1741,6 +1280,7 @@ async function scanDirectory(
 ){
 
     const results = [];
+
 
     if(depth > 8){
         return results;
@@ -1773,7 +1313,6 @@ async function scanDirectory(
             );
 
             continue;
-
         }
 
 
@@ -1791,11 +1330,7 @@ async function scanDirectory(
                 );
 
             if(game){
-
-                results.push(
-                    game
-                );
-
+                results.push(game);
             }
 
         }
@@ -1807,14 +1342,11 @@ async function scanDirectory(
 
                 results.push({
 
-                    name:
-                        cleanTitle(name),
+                    name:cleanTitle(name),
 
-                    fileName:
-                        name,
+                    fileName:name,
 
-                    path:
-                        currentPath
+                    path:currentPath
 
                 });
 
@@ -1826,7 +1358,6 @@ async function scanDirectory(
 
 
     return results;
-
 }
 
 
@@ -1849,9 +1380,7 @@ async function getFileFromPath(
         rootDirectory;
 
 
-    for(
-        const part of parts
-    ){
+    for(const part of parts){
 
         directory =
             await directory.getDirectoryHandle(
@@ -1868,7 +1397,6 @@ async function getFileFromPath(
 
 
     return await fileHandle.getFile();
-
 }
 
 
@@ -1882,9 +1410,7 @@ function renderFilters(){
 
 
     const allButton =
-        document.createElement(
-            "button"
-        );
+        document.createElement("button");
 
     allButton.className =
         "chip" +
@@ -1900,8 +1426,7 @@ function renderFilters(){
 
     allButton.onclick = () => {
 
-        activeSystem =
-            "all";
+        activeSystem = "all";
 
         render();
 
@@ -1917,8 +1442,7 @@ function renderFilters(){
         [
             ...new Set(
                 games.map(
-                    game =>
-                        game.system
+                    game => game.system
                 )
             )
         ];
@@ -1927,24 +1451,18 @@ function renderFilters(){
     usedSystems.sort(
         (a,b) =>
             (
-                SYSTEMS[a]?.name ||
-                a
+                SYSTEMS[a]?.name || a
             ).localeCompare(
-                SYSTEMS[b]?.name ||
-                b
+                SYSTEMS[b]?.name || b
             )
     );
 
 
-    for(
-        const systemId
-        of usedSystems
-    ){
+    for(const systemId of usedSystems){
 
         const button =
-            document.createElement(
-                "button"
-            );
+            document.createElement("button");
+
 
         button.className =
             "chip" +
@@ -1995,63 +1513,52 @@ function renderGames(){
 
 
     const filtered =
-        games.filter(
-            game => {
+        games.filter(game => {
+
+            if(
+                activeSystem !== "all" &&
+                game.system !== activeSystem
+            ){
+                return false;
+            }
+
+
+            if(search){
+
+                const searchable =
+                    (
+                        game.name +
+                        " " +
+                        game.fileName +
+                        " " +
+                        (
+                            SYSTEMS[
+                                game.system
+                            ]?.name || ""
+                        )
+                    ).toLowerCase();
+
 
                 if(
-                    activeSystem !== "all" &&
-                    game.system !== activeSystem
+                    !searchable.includes(search)
                 ){
-
                     return false;
-
                 }
-
-
-                if(search){
-
-                    const searchable =
-                        (
-                            game.name +
-                            " " +
-                            game.fileName +
-                            " " +
-                            (
-                                SYSTEMS[
-                                    game.system
-                                ]?.name ||
-                                ""
-                            )
-                        ).toLowerCase();
-
-
-                    if(
-                        !searchable.includes(
-                            search
-                        )
-                    ){
-
-                        return false;
-
-                    }
-
-                }
-
-
-                return true;
 
             }
-        );
+
+
+            return true;
+
+        });
 
 
     if(filtered.length === 0){
 
         gamesGrid.innerHTML =
-            `
-            <div class="empty">
+            `<div class="empty">
                 No ROM games found.
-            </div>
-            `;
+            </div>`;
 
         return;
 
@@ -2066,15 +1573,10 @@ function renderGames(){
     );
 
 
-    for(
-        const game
-        of filtered
-    ){
+    for(const game of filtered){
 
         const card =
-            document.createElement(
-                "button"
-            );
+            document.createElement("button");
 
         card.className =
             "card";
@@ -2083,20 +1585,16 @@ function renderGames(){
         card.innerHTML = `
 
             <div class="cardTitle">
-
                 ${escapeHTML(game.name)}
-
             </div>
 
             <div class="cardMeta">
-
                 ${escapeHTML(
                     SYSTEMS[
                         game.system
                     ]?.name ||
                     game.system
                 )}
-
             </div>
 
         `;
@@ -2104,16 +1602,12 @@ function renderGames(){
 
         card.onclick = () => {
 
-            playGame(
-                game
-            );
+            playGame(game);
 
         };
 
 
-        gamesGrid.appendChild(
-            card
-        );
+        gamesGrid.appendChild(card);
 
     }
 
@@ -2136,30 +1630,28 @@ function renderPorts(){
 
 
     const filtered =
-        ports.filter(
-            port => {
+        ports.filter(port => {
 
-                if(!search){
-                    return true;
-                }
-
-
-                const searchable =
-                    (
-                        port.name +
-                        " " +
-                        port.fileName +
-                        " " +
-                        port.path
-                    ).toLowerCase();
-
-
-                return searchable.includes(
-                    search
-                );
-
+            if(!search){
+                return true;
             }
-        );
+
+
+            const searchable =
+                (
+                    port.name +
+                    " " +
+                    port.fileName +
+                    " " +
+                    port.path
+                ).toLowerCase();
+
+
+            return searchable.includes(
+                search
+            );
+
+        });
 
 
     if(filtered.length === 0){
@@ -2168,11 +1660,9 @@ function renderPorts(){
             false;
 
         portsGrid.innerHTML =
-            `
-            <div class="empty">
+            `<div class="empty">
                 No ports found.
-            </div>
-            `;
+            </div>`;
 
         return;
 
@@ -2191,15 +1681,10 @@ function renderPorts(){
     );
 
 
-    for(
-        const port
-        of filtered
-    ){
+    for(const port of filtered){
 
         const card =
-            document.createElement(
-                "button"
-            );
+            document.createElement("button");
 
         card.className =
             "card";
@@ -2208,17 +1693,11 @@ function renderPorts(){
         card.innerHTML = `
 
             <div class="cardTitle">
-
-                ${escapeHTML(
-                    port.name
-                )}
-
+                ${escapeHTML(port.name)}
             </div>
 
             <div class="cardMeta">
-
                 Port
-
             </div>
 
         `;
@@ -2226,16 +1705,12 @@ function renderPorts(){
 
         card.onclick = () => {
 
-            playPort(
-                port
-            );
+            playPort(port);
 
         };
 
 
-        portsGrid.appendChild(
-            card
-        );
+        portsGrid.appendChild(card);
 
     }
 
@@ -2324,23 +1799,15 @@ function updateStatus(){
 
     statusElement.innerHTML = `
 
-        <strong>
-            SELECT folder connected.
-        </strong>
+        <strong>SELECT folder connected.</strong>
 
         ${romCount}
-
-        ${romCount === 1
-            ? "ROM game"
-            : "ROM games"}
+        ${romCount === 1 ? "ROM game" : "ROM games"}
 
         and
 
         ${portCount}
-
-        ${portCount === 1
-            ? "port"
-            : "ports"}
+        ${portCount === 1 ? "port" : "ports"}
 
         found.
 
@@ -2352,12 +1819,17 @@ function updateStatus(){
 
 
 /* =========================================================
-   CONNECT SELECT FOLDER
+   CHOOSE SELECT FOLDER
 ========================================================= */
 
-async function connectSelectFolder(
-    handle
-){
+/*
+    Shared by both a fresh folder pick and an automatic
+    reconnect on startup: given a SELECT directory handle we
+    already have permission for, find ROMs/Ports/Saves inside
+    it, scan them, remember the handle for next time, and
+    render the library.
+*/
+async function connectSelectFolder(handle){
 
     selectDirectory =
         handle;
@@ -2366,8 +1838,7 @@ async function connectSelectFolder(
 
     ports = [];
 
-    activeSystem =
-        "all";
+    activeSystem = "all";
 
 
     /*
@@ -2421,7 +1892,9 @@ async function connectSelectFolder(
 
 
     /*
-        Find/create Saves.
+        Find Saves automatically.
+
+        NO SECOND FOLDER PICKER.
     */
 
     try{
@@ -2481,7 +1954,9 @@ async function connectSelectFolder(
 
 
     /*
-        Remember folder.
+        Remember this folder so leaveGame's reload
+        (or the next time this page is opened) can
+        reconnect without the user re-browsing for it.
     */
 
     await rememberSelectFolder(
@@ -2496,44 +1971,54 @@ async function connectSelectFolder(
 }
 
 
-/* =========================================================
-   CHOOSE SELECT FOLDER
-========================================================= */
-
 async function chooseSelectFolder(){
 
-    selectDirectory =
-        null;
+    /*
+        Clear old handles before picking a new one.
+    */
 
-    romDirectory =
-        null;
+    selectDirectory = null;
 
-    portsDirectory =
-        null;
+    romDirectory = null;
 
-    saveDirectory =
-        null;
+    portsDirectory = null;
+
+    saveDirectory = null;
 
     games = [];
 
     ports = [];
 
-    activeSystem =
-        "all";
+    activeSystem = "all";
 
 
     try{
+
+        /*
+            Modern browsers.
+        */
 
         if(
             "showDirectoryPicker"
             in window
         ){
 
+            /*
+                READWRITE is important because the
+                Saves folder needs to be writable.
+            */
+
             const selected =
                 await window.showDirectoryPicker({
+
                     mode:"readwrite"
+
                 });
 
+
+            /*
+                The user should select SELECT.
+            */
 
             if(
                 selected.name !==
@@ -2542,17 +2027,20 @@ async function chooseSelectFolder(){
 
                 const proceed =
                     confirm(
+
                         `You selected "${selected.name}".\n\n` +
+
                         `Please select the "SELECT" folder.\n\n` +
+
                         `Press OK to use this folder anyway, ` +
+
                         `or Cancel to choose again.`
+
                     );
 
 
                 if(!proceed){
-
                     return;
-
                 }
 
             }
@@ -2566,6 +2054,11 @@ async function chooseSelectFolder(){
 
         }
 
+
+        /*
+            Fallback for browsers that don't support
+            showDirectoryPicker.
+        */
 
         chooseFolderFallback();
 
@@ -2612,16 +2105,16 @@ async function chooseSelectFolder(){
 function chooseFolderFallback(){
 
     const input =
-        document.createElement(
-            "input"
-        );
+        document.createElement("input");
 
 
     input.type =
         "file";
 
+
     input.webkitdirectory =
         true;
+
 
     input.multiple =
         true;
@@ -2638,14 +2131,18 @@ function chooseFolderFallback(){
 
         ports = [];
 
-        saveDirectory =
-            null;
+
+        /*
+            Fallback cannot automatically create a
+            writable Saves directory.
+
+            It can still load the ROMs and Ports.
+        */
+
+        saveDirectory = null;
 
 
-        for(
-            const file
-            of input.files
-        ){
+        for(const file of input.files){
 
             const relative =
                 file.webkitRelativePath
@@ -2658,6 +2155,10 @@ function chooseFolderFallback(){
             const parts =
                 relative.split("/");
 
+
+            /*
+                Remove SELECT.
+            */
 
             parts.shift();
 
@@ -2692,9 +2193,7 @@ function chooseFolderFallback(){
                     game.fallbackFile =
                         file;
 
-                    games.push(
-                        game
-                    );
+                    games.push(game);
 
                 }
 
@@ -2711,11 +2210,7 @@ function chooseFolderFallback(){
                 )
             ){
 
-                if(
-                    isPortName(
-                        file.name
-                    )
-                ){
+                if(isPortName(file.name)){
 
                     ports.push({
 
@@ -2727,8 +2222,7 @@ function chooseFolderFallback(){
                         fileName:
                             file.name,
 
-                        path:
-                            path,
+                        path:path,
 
                         fallbackFile:
                             file
@@ -2744,9 +2238,7 @@ function chooseFolderFallback(){
 
         statusElement.innerHTML = `
 
-            <strong>
-                SELECT folder loaded.
-            </strong>
+            <strong>SELECT folder loaded.</strong>
 
             ${games.length}
             ROM games and
@@ -2755,10 +2247,8 @@ function chooseFolderFallback(){
             ports found.
 
             <strong>
-
                 The Saves folder requires the modern
                 folder picker to write files.
-
             </strong>
 
         `;
@@ -2791,7 +2281,9 @@ async function ensureSaveFolderPermission(
 
         let state =
             await saveDirectory.queryPermission({
+
                 mode:"readwrite"
+
             });
 
 
@@ -2804,8 +2296,11 @@ async function ensureSaveFolderPermission(
 
             state =
                 await saveDirectory.requestPermission({
+
                     mode:"readwrite"
+
                 });
+
 
             return state === "granted";
 
@@ -2850,6 +2345,10 @@ async function writeSaveFile(
 
     try{
 
+        /*
+            Ask for permission if necessary.
+        */
+
         const allowed =
             await ensureSaveFolderPermission(
                 true
@@ -2869,10 +2368,13 @@ async function writeSaveFile(
 
         const fileHandle =
             await saveDirectory.getFileHandle(
+
                 fileName,
+
                 {
                     create:true
                 }
+
             );
 
 
@@ -2919,6 +2421,11 @@ async function readSaveFile(
 ){
 
     if(!saveDirectory){
+
+        console.warn(
+            "No Saves folder connected."
+        );
+
         return null;
     }
 
@@ -2932,6 +2439,11 @@ async function readSaveFile(
 
 
         if(!allowed){
+
+            console.warn(
+                "Saves folder permission denied."
+            );
+
             return null;
         }
 
@@ -2946,9 +2458,42 @@ async function readSaveFile(
             await fileHandle.getFile();
 
 
-        return await file.text();
+        const text =
+            await file.text();
+
+        console.log(
+            "Save read:",
+            fileName,
+            "(" + text.length + " chars)"
+        );
+
+        return text;
 
     }catch(error){
+
+        /*
+            NotFoundError is normal if this is the
+            first time the game is being played -
+            anything else is a real problem, so it's
+            logged instead of swallowed.
+        */
+
+        if(error && error.name === "NotFoundError"){
+
+            console.log(
+                "No existing save file yet:",
+                fileName
+            );
+
+        }else{
+
+            console.error(
+                "Could not read save file:",
+                fileName,
+                error
+            );
+
+        }
 
         return null;
 
@@ -2959,25 +2504,25 @@ async function readSaveFile(
 
 /* =========================================================
    EMULATORJS SAVE BRIDGE
+
+   Ports (above) exchange text-based save data over
+   postMessage. EmulatorJS's own saves/states are raw binary
+   (Uint8Array), so these use the same Saves folder and the
+   same permission check, but write/read bytes directly
+   instead of going through file.text().
 ========================================================= */
 
-function emulatorSaveFileName(
-    gameId
-){
+function emulatorSaveFileName(gameId){
 
     return gameId + ".srm";
 
 }
 
-
-function emulatorStateFileName(
-    gameId
-){
+function emulatorStateFileName(gameId){
 
     return gameId + ".state";
 
 }
-
 
 async function writeSaveFileBinary(
     fileName,
@@ -2988,9 +2533,7 @@ async function writeSaveFileBinary(
         !saveDirectory ||
         !bytes
     ){
-
         return false;
-
     }
 
 
@@ -3009,10 +2552,13 @@ async function writeSaveFileBinary(
 
         const fileHandle =
             await saveDirectory.getFileHandle(
+
                 fileName,
+
                 {
                     create:true
                 }
+
             );
 
 
@@ -3042,7 +2588,6 @@ async function writeSaveFileBinary(
     }
 
 }
-
 
 async function readSaveFileBinary(
     fileName
@@ -3086,31 +2631,49 @@ async function readSaveFileBinary(
 
     }catch(error){
 
+        /*
+            FileNotFound is normal the first time this
+            game is played - it just hasn't saved yet.
+        */
+
         return null;
 
     }
 
 }
 
-
+/*
+    Arms a promise that resolves the next time EJS_onSaveUpdate
+    finishes writing a save to disk (see below). Call this right
+    before forcing a save, then await the returned promise (with a
+    timeout) to know the write actually landed.
+*/
 function armPendingAutosaveWait(){
 
     pendingAutosavePromise =
-        new Promise(
-            resolve => {
+        new Promise(resolve => {
 
-                pendingAutosaveResolve =
-                    resolve;
+            pendingAutosaveResolve =
+                resolve;
 
-            }
-        );
+        });
 
 
     return pendingAutosavePromise;
 
 }
 
+/*
+    Forces EmulatorJS to flush the current battery/SRAM save right
+    now (the same thing EJS_fixedSaveInterval does periodically),
+    and waits briefly for that write to actually finish before
+    returning. Used when the player is about to leave the game, so
+    a save isn't abandoned mid-write by the page reload.
 
+    If nothing has changed since the last save, EJS_onSaveUpdate
+    never fires (EmulatorJS skips it via hash comparison), so this
+    also has a short timeout instead of waiting forever.
+*/
 async function flushEmulatorSaveBeforeExit(){
 
     const emulator =
@@ -3123,9 +2686,7 @@ async function flushEmulatorSaveBeforeExit(){
         typeof emulator.gameManager.saveSaveFiles !==
             "function"
     ){
-
         return;
-
     }
 
 
@@ -3143,11 +2704,7 @@ async function flushEmulatorSaveBeforeExit(){
             waitForWrite,
 
             new Promise(
-                resolve =>
-                    setTimeout(
-                        resolve,
-                        1500
-                    )
+                resolve => setTimeout(resolve, 1500)
             )
 
         ]);
@@ -3163,10 +2720,14 @@ async function flushEmulatorSaveBeforeExit(){
 
 }
 
-
-async function loadEmulatorSaveOnStart(
-    gameId
-){
+/*
+    Writes bytes straight into EmulatorJS's own emulated
+    filesystem at the path the running core expects its save
+    file to be, then tells the core to re-read it. This is
+    the same technique EmulatorJS's own "Load Save File"
+    button uses.
+*/
+async function loadEmulatorSaveOnStart(gameId){
 
     const emulator =
         window.EJS_emulator;
@@ -3176,17 +2737,13 @@ async function loadEmulatorSaveOnStart(
         !emulator ||
         !emulator.gameManager
     ){
-
         return;
-
     }
 
 
     const bytes =
         await readSaveFileBinary(
-            emulatorSaveFileName(
-                gameId
-            )
+            emulatorSaveFileName(gameId)
         );
 
 
@@ -3211,8 +2768,8 @@ async function loadEmulatorSaveOnStart(
 
 
     for(
-        let i=0;
-        i<parts.length - 1;
+        let i = 0;
+        i < parts.length - 1;
         i++
     ){
 
@@ -3220,16 +2777,12 @@ async function loadEmulatorSaveOnStart(
             continue;
         }
 
-
         currentPath +=
             "/" + parts[i];
 
-
         if(
             !gameManager.FS
-                .analyzePath(
-                    currentPath
-                )
+                .analyzePath(currentPath)
                 .exists
         ){
 
@@ -3244,9 +2797,7 @@ async function loadEmulatorSaveOnStart(
 
     if(
         gameManager.FS
-            .analyzePath(
-                path
-            )
+            .analyzePath(path)
             .exists
     ){
 
@@ -3272,9 +2823,34 @@ async function loadEmulatorSaveOnStart(
    SAVE BRIDGE
 ========================================================= */
 
+/*
+    A port such as PVZ runs inside portFrame.
+
+    The port can send:
+
+        folder-save-request
+
+    or:
+
+        folder-load-request
+
+    to this launcher.
+
+    The launcher then accesses:
+
+        SELECT/Saves/
+
+    and sends the result back.
+*/
+
 window.addEventListener(
     "message",
     async event => {
+
+        /*
+            Only accept messages from our current
+            port iframe.
+        */
 
         if(
             event.source !==
@@ -3304,8 +2880,10 @@ window.addEventListener(
         const type =
             message.type;
 
+
         const payload =
             message.payload || {};
+
 
         const id =
             payload.id;
@@ -3322,22 +2900,33 @@ window.addEventListener(
 
             const ok =
                 await writeSaveFile(
+
                     payload.fileName,
+
                     payload.contents
+
                 );
 
 
             portFrame.contentWindow.postMessage(
+
                 {
+
                     source:
                         "pvz-portable-host",
 
                     payload:{
+
                         id:id,
+
                         ok:ok
+
                     }
+
                 },
+
                 "*"
+
             );
 
 
@@ -3357,16 +2946,21 @@ window.addEventListener(
 
             const contents =
                 await readSaveFile(
+
                     payload.fileName
+
                 );
 
 
             portFrame.contentWindow.postMessage(
+
                 {
+
                     source:
                         "pvz-portable-host",
 
                     payload:{
+
                         id:id,
 
                         ok:
@@ -3374,9 +2968,13 @@ window.addEventListener(
 
                         contents:
                             contents
+
                     }
+
                 },
+
                 "*"
+
             );
 
 
@@ -3392,16 +2990,21 @@ window.addEventListener(
    CREATE ROM URL
 ========================================================= */
 
-async function createROMURL(
-    game
-){
+async function createROMURL(game){
+
+    /*
+        Modern folder picker.
+    */
 
     if(romDirectory){
 
         const file =
             await getFileFromPath(
+
                 romDirectory,
+
                 game.path
+
             );
 
 
@@ -3411,6 +3014,10 @@ async function createROMURL(
 
     }
 
+
+    /*
+        Fallback.
+    */
 
     if(game.fallbackFile){
 
@@ -3432,9 +3039,7 @@ async function createROMURL(
    PLAY ROM
 ========================================================= */
 
-async function playGame(
-    game
-){
+async function playGame(game){
 
     try{
 
@@ -3463,6 +3068,7 @@ async function playGame(
         portFrame.hidden =
             true;
 
+
         portFrame.src =
             "about:blank";
 
@@ -3475,6 +3081,10 @@ async function playGame(
             "hidden"
         );
 
+
+        /*
+            EmulatorJS configuration.
+        */
 
         window.EJS_player =
             "#game";
@@ -3528,6 +3138,19 @@ async function playGame(
             );
 
 
+        /*
+            Route EmulatorJS's own save states and in-game
+            (SRAM) saves through the SELECT/Saves folder
+            instead of browser storage or manual downloads.
+
+            Each hook fully replaces the matching default
+            behavior once it's registered - so these both
+            handle the automatic case (silent autosave as
+            you play) and the manual "Save State"/"Load
+            State"/"Save File"/"Load File" buttons in
+            EmulatorJS's own menu.
+        */
+
         window.EJS_onGameStart =
             async () => {
 
@@ -3539,15 +3162,19 @@ async function playGame(
 
 
         window.EJS_onSaveUpdate =
-            async data => {
+            async (data) => {
 
                 await writeSaveFileBinary(
-                    emulatorSaveFileName(
-                        gameId
-                    ),
+                    emulatorSaveFileName(gameId),
                     data.save
                 );
 
+
+                /*
+                    Wake up anything waiting on
+                    flushEmulatorSaveBeforeExit() (e.g. the
+                    Back button), now that the write is done.
+                */
 
                 if(pendingAutosaveResolve){
 
@@ -3561,9 +3188,26 @@ async function playGame(
             };
 
 
+        /*
+            Force EmulatorJS to flush the SRAM/battery save to
+            disk on a fixed timer, regardless of whatever the
+            player's own "save interval" setting is (this also
+            hides that setting from the in-game menu so it can't
+            be turned down or off). Each flush fires
+            EJS_onSaveUpdate above, which is what actually
+            autosaves to the Saves folder.
+        */
+
         window.EJS_fixedSaveInterval =
             CONFIG.autosaveIntervalMs;
 
+
+        /*
+            EmulatorJS's own toolbar has its own "exit" button
+            with no hook into our save-flushing logic. Hide it so
+            the only way out is our "<- Back" button, which always
+            flushes the save first (see leaveGame()).
+        */
 
         window.EJS_Buttons =
             {
@@ -3572,12 +3216,10 @@ async function playGame(
 
 
         window.EJS_onSaveSave =
-            async data => {
+            async (data) => {
 
                 await writeSaveFileBinary(
-                    emulatorSaveFileName(
-                        gameId
-                    ),
+                    emulatorSaveFileName(gameId),
                     data.save
                 );
 
@@ -3595,12 +3237,10 @@ async function playGame(
 
 
         window.EJS_onSaveState =
-            async data => {
+            async (data) => {
 
                 await writeSaveFileBinary(
-                    emulatorStateFileName(
-                        gameId
-                    ),
+                    emulatorStateFileName(gameId),
                     data.state
                 );
 
@@ -3612,9 +3252,7 @@ async function playGame(
 
                 const bytes =
                     await readSaveFileBinary(
-                        emulatorStateFileName(
-                            gameId
-                        )
+                        emulatorStateFileName(gameId)
                     );
 
 
@@ -3625,9 +3263,7 @@ async function playGame(
                 ){
 
                     window.EJS_emulator.gameManager
-                        .loadState(
-                            bytes
-                        );
+                        .loadState(bytes);
 
                 }
 
@@ -3684,9 +3320,7 @@ async function playGame(
 
     }catch(error){
 
-        console.error(
-            error
-        );
+        console.error(error);
 
 
         alert(
@@ -3703,15 +3337,16 @@ async function playGame(
    GET PORT FILE
 ========================================================= */
 
-async function getPortFile(
-    port
-){
+async function getPortFile(port){
 
     if(portsDirectory){
 
         return await getFileFromPath(
+
             portsDirectory,
+
             port.path
+
         );
 
     }
@@ -3735,9 +3370,7 @@ async function getPortFile(
    PLAY PORT
 ========================================================= */
 
-async function playPort(
-    port
-){
+async function playPort(port){
 
     try{
 
@@ -3862,6 +3495,7 @@ async function playPort(
         gameElement.hidden =
             true;
 
+
         portFrame.hidden =
             false;
 
@@ -3872,9 +3506,7 @@ async function playPort(
 
     }catch(error){
 
-        console.error(
-            error
-        );
+        console.error(error);
 
 
         alert(
@@ -3893,7 +3525,21 @@ async function playPort(
 
 async function leaveGame(){
 
+    /*
+        Give EmulatorJS a chance to write out the latest save
+        before the reload below wipes everything - otherwise
+        whatever changed since the last autosave tick is lost.
+        No-ops instantly for ports (no EJS_emulator) or if
+        nothing has changed since the last save.
+    */
+
     await flushEmulatorSaveBeforeExit();
+
+
+    /*
+        Reloading completely resets EmulatorJS and
+        the port iframe.
+    */
 
     location.reload();
 
@@ -3907,7 +3553,9 @@ async function leaveGame(){
 searchElement.addEventListener(
     "input",
     () => {
+
         render();
+
     }
 );
 
@@ -3939,8 +3587,7 @@ document.addEventListener(
             searchElement
         ){
 
-            searchElement.value =
-                "";
+            searchElement.value = "";
 
             render();
 
@@ -3961,38 +3608,27 @@ chooseFolderButton.onclick =
 
 
 /*
-    UPDATE HANDLER
-
-    Clicking "Update Latest Version" downloads:
-
-        GitHub:
-        LatestVersion/index.html
-
-        GitHub:
-        LatestVersion/ChimpanziniKiosk.html
-
-    and replaces:
-
-        local/index.html
-
-        local/SELECT/ChimpanziniKiosk.html
-
-    The project-root folder must be selected because
-    the browser cannot obtain the parent directory of
-    the existing SELECT handle.
+    Open the separate online GitHub/CDN library.
+    The handler lives inside SELECT so the main launcher remains
+    completely unchanged for people who want to use their own files.
 */
-
-onlineLibraryButton.onclick =
-    updateLatestVersion;
+onlineLibraryButton.onclick = () => {
+    location.href = "./SELECT/ChimpanziniKiosk.html";
+};
 
 
 backButton.onclick =
     leaveGame;
 
 
-/* =========================================================
-   BEST-EFFORT SAVE SAFETY
-========================================================= */
+/*
+    Best-effort safety net for the cases leaveGame() can't cover -
+    the tab being backgrounded, closed, or navigated away from
+    directly instead of via the Back button. This can't guarantee
+    the write finishes (the page may already be gone), but it gives
+    it the best chance by triggering the flush as early as possible
+    rather than waiting for the next fixed-interval tick.
+*/
 
 function triggerBestEffortSave(){
 
@@ -4040,17 +3676,15 @@ window.addEventListener(
 
 statusElement.innerHTML = `
 
-    <strong>
-        No folder selected.
-    </strong>
+    <strong>No folder selected.</strong>
 
     Click
+
     <b>Choose SELECT Folder</b>
+
     and select:
 
-    <b>
-        CHIMPANZINI PANANINI/SELECT
-    </b>
+    <b>CHIMPANZINI PANANINI/SELECT</b>
 
     <br><br>
 
@@ -4068,7 +3702,12 @@ render();
 
 
 /*
-    Try to silently reconnect to the last SELECT folder.
+    Try to silently reconnect to whichever SELECT folder was
+    used last time (e.g. right after leaveGame's reload), so
+    the user doesn't have to re-browse for it. If there's
+    nothing remembered, or permission needs re-confirming,
+    this leaves the "No folder selected" message above alone
+    (or replaces it with a one-click Reconnect button).
 */
 
 tryRestoreSelectFolder();
