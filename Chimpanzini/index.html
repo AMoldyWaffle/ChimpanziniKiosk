@@ -519,6 +519,81 @@ main{
 <script>
 
 /* =========================================================
+   RUNTIME TRACKER
+
+   A running game can keep going in the background after you
+   leave it (music, emulator threads, game loops). To be able
+   to really shut it down, remember every AudioContext and
+   Worker created by this page so leaveGame() can close them.
+   This must run before any emulator code loads.
+========================================================= */
+
+const trackedAudioContexts = new Set();
+
+const trackedWorkers = new Set();
+
+(function(){
+
+    for(const name of ["AudioContext","webkitAudioContext"]){
+
+        const Original = window[name];
+
+        if(typeof Original !== "function"){
+            continue;
+        }
+
+        try{
+
+            window[name] = class extends Original {
+
+                constructor(...args){
+
+                    super(...args);
+
+                    trackedAudioContexts.add(this);
+
+                }
+
+            };
+
+        }catch(error){
+
+            console.warn("Could not track " + name, error);
+
+        }
+
+    }
+
+    if(typeof window.Worker === "function"){
+
+        const OriginalWorker = window.Worker;
+
+        try{
+
+            window.Worker = class extends OriginalWorker {
+
+                constructor(...args){
+
+                    super(...args);
+
+                    trackedWorkers.add(this);
+
+                }
+
+            };
+
+        }catch(error){
+
+            console.warn("Could not track Worker", error);
+
+        }
+
+    }
+
+})();
+
+
+/* =========================================================
    CONFIG
 ========================================================= */
 
@@ -1057,7 +1132,7 @@ const searchElement =
 const player =
     document.getElementById("player");
 
-const gameElement =
+let gameElement =
     document.getElementById("game");
 
 const portFrame =
@@ -3043,6 +3118,16 @@ async function playGame(game){
 
     try{
 
+        if(emulatorUsed || gameStopped){
+
+            resetEmulatorHost();
+
+        }
+
+        emulatorUsed = true;
+
+        gameStopped = false;
+
         if(activeBlobUrl){
 
             URL.revokeObjectURL(
@@ -3374,6 +3459,8 @@ async function playPort(port){
 
     try{
 
+        gameStopped = false;
+
         if(activeBlobUrl){
 
             URL.revokeObjectURL(
@@ -3523,25 +3610,202 @@ async function playPort(port){
    LEAVE GAME
 ========================================================= */
 
+/*
+    Really stops whatever is running - not just hides it.
+
+    - Ports: the iframe is navigated to about:blank and removed
+      from the page, which destroys its window, scripts, timers
+      and audio.
+    - Emulators: the core's main loop is stopped, every
+      AudioContext and Worker the page created is closed /
+      terminated, and the game element is emptied.
+*/
+
+let gameStopped = false;
+
+let emulatorUsed = false;
+
+function stopRunningGame(){
+
+    gameStopped = true;
+
+
+    /* ---- Port iframe ---- */
+
+    try{
+
+        portFrame.hidden = true;
+
+        portFrame.src = "about:blank";
+
+        if(portFrame.contentWindow){
+
+            try{
+                portFrame.contentWindow.stop();
+            }catch(error){}
+
+        }
+
+    }catch(error){
+
+        console.warn("Could not stop port frame:", error);
+
+    }
+
+    if(activeBlobUrl){
+
+        URL.revokeObjectURL(activeBlobUrl);
+
+        activeBlobUrl = null;
+
+    }
+
+
+    /* ---- Emulator ---- */
+
+    const emulator = window.EJS_emulator;
+
+    if(emulator){
+
+        try{
+
+            if(typeof emulator.pause === "function"){
+                emulator.pause(true);
+            }
+
+        }catch(error){}
+
+        try{
+
+            if(
+                emulator.gameManager &&
+                typeof emulator.gameManager.toggleMainLoop === "function"
+            ){
+                emulator.gameManager.toggleMainLoop(0);
+            }
+
+        }catch(error){}
+
+    }
+
+    for(const context of trackedAudioContexts){
+
+        try{
+            context.close();
+        }catch(error){}
+
+    }
+
+    trackedAudioContexts.clear();
+
+    for(const worker of trackedWorkers){
+
+        try{
+            worker.terminate();
+        }catch(error){}
+
+    }
+
+    trackedWorkers.clear();
+
+    try{
+
+        gameElement.innerHTML = "";
+
+        gameElement.hidden = true;
+
+    }catch(error){}
+
+    const oldLoader = document.getElementById("emulatorjs-loader");
+
+    if(oldLoader){
+        oldLoader.remove();
+    }
+
+    window.EJS_emulator = null;
+
+}
+
+/*
+    Gets the emulator host back to a clean state so another
+    game can be started without reloading the page (only used
+    when the page couldn't reload itself - see leaveGame()).
+*/
+function resetEmulatorHost(){
+
+    const fresh = document.createElement("div");
+
+    fresh.id = "game";
+
+    gameElement.replaceWith(fresh);
+
+    gameElement = fresh;
+
+    delete window.EJS_emulator;
+
+    gameStopped = false;
+
+}
+
+let leaving = false;
+
 async function leaveGame(){
+
+    if(leaving){
+        return;
+    }
+
+    leaving = true;
+
 
     /*
         Give EmulatorJS a chance to write out the latest save
-        before the reload below wipes everything - otherwise
-        whatever changed since the last autosave tick is lost.
-        No-ops instantly for ports (no EJS_emulator) or if
-        nothing has changed since the last save.
+        before everything is shut down - otherwise whatever
+        changed since the last autosave tick is lost. No-ops
+        instantly for ports (no EJS_emulator) or if nothing
+        has changed since the last save.
     */
 
-    await flushEmulatorSaveBeforeExit();
+    try{
+        await flushEmulatorSaveBeforeExit();
+    }catch(error){
+        console.warn("Save flush failed:", error);
+    }
 
 
     /*
-        Reloading completely resets EmulatorJS and
-        the port iframe.
+        Shut the game down right now, whatever happens next.
     */
 
-    location.reload();
+    stopRunningGame();
+
+    player.classList.add("hidden");
+
+
+    /*
+        Reloading gives a completely fresh page. Some setups
+        (for example a file:// page in a locked-down frame)
+        block the reload, so don't depend on it: if we're
+        still here shortly afterwards, carry on in place with
+        the game already stopped.
+    */
+
+    try{
+        location.reload();
+    }catch(error){
+        console.warn("Reload blocked:", error);
+    }
+
+    setTimeout(
+        () => {
+
+            leaving = false;
+
+            render();
+
+        },
+        1500
+    );
 
 }
 
@@ -3632,6 +3896,10 @@ backButton.onclick =
 
 function triggerBestEffortSave(){
 
+    if(gameStopped){
+        return;
+    }
+
     const emulator =
         window.EJS_emulator;
 
@@ -3643,7 +3911,9 @@ function triggerBestEffortSave(){
             "function"
     ){
 
-        emulator.gameManager.saveSaveFiles();
+        try{
+            emulator.gameManager.saveSaveFiles();
+        }catch(error){}
 
     }
 
