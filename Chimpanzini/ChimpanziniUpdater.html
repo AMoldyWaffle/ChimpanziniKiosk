@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chimpanzini Updater</title>
+<style>
+body{
+  font-family:Arial,sans-serif;
+  background:#111;
+  color:#fff;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  min-height:100vh;
+  margin:0
+}
+.box{
+  width:min(720px,90vw);
+  background:#1d1d1d;
+  border-radius:14px;
+  padding:28px;
+  box-shadow:0 10px 35px #0008
+}
+h1{margin-top:0}
+.info{color:#bbb;line-height:1.5}
+button{
+  font-size:18px;
+  padding:14px 20px;
+  border:0;
+  border-radius:9px;
+  cursor:pointer;
+  background:#4caf50;
+  color:#fff
+}
+button:disabled{opacity:.5;cursor:not-allowed}
+.progress{
+  margin-top:18px;
+  background:#333;
+  border-radius:8px;
+  overflow:hidden;
+  height:22px
+}
+.bar{
+  height:100%;
+  width:0;
+  background:#4caf50;
+  transition:width .15s
+}
+.status{
+  margin-top:14px;
+  white-space:pre-wrap;
+  color:#ddd
+}
+.small{
+  font-size:13px;
+  color:#999;
+  margin-top:18px
+}
+.file{
+  margin-top:10px;
+  padding:10px;
+  background:#292929;
+  border-radius:7px;
+}
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>Chimpanzini Updater</h1>
+
+  <p class="info">
+    Select your existing <b>Chimpanzini</b> folder.
+    This updater will replace the launcher files with the latest versions
+    from the GitHub repository.
+  </p>
+
+  <br>
+  <button id="start">Choose Chimpanzini Folder</button>
+
+  <div class="progress">
+    <div class="bar" id="bar"></div>
+  </div>
+
+  <div class="status" id="status">Waiting for your Chimpanzini folder...</div>
+
+  <div class="small">
+    Your existing game files and other folders are not changed.
+    Only the two files listed above are replaced.
+  </div>
+</div>
+
+<script>
+const OWNER = 'AMoldyWaffle';
+const REPO = 'ChimpanziniKiosk';
+const BRANCH = 'main';
+
+const FILES = [
+  'index.html',
+  'chimpanzinikiosk.html'
+];
+
+const API =
+  'https://api.github.com/repos/' + OWNER + '/' + REPO +
+  '/git/trees/' + BRANCH + '?recursive=1';
+
+const startButton = document.getElementById('start');
+const statusEl = document.getElementById('status');
+const bar = document.getElementById('bar');
+
+function setStatus(text){
+  statusEl.textContent = text;
+}
+
+function setProgress(value){
+  bar.style.width = Math.max(0, Math.min(100, value)) + '%';
+}
+
+async function getRepositoryTree(){
+  const response = await fetch(API, {
+    cache: 'no-store',
+    headers: {
+      'Accept': 'application/vnd.github+json'
+    }
+  });
+
+  if(!response.ok){
+    throw new Error(
+      'GitHub API error: ' + response.status + ' ' + response.statusText
+    );
+  }
+
+  const data = await response.json();
+
+  if(data.truncated){
+    throw new Error(
+      'GitHub returned a truncated repository tree, so the updater ' +
+      'could not safely search the whole repository.'
+    );
+  }
+
+  return data.tree.filter(item => item.type === 'blob');
+}
+
+function findExactFiles(tree){
+  const found = {};
+
+  for(const filename of FILES){
+    const matches = tree.filter(item =>
+      item.path.split('/').pop().toLowerCase() === filename.toLowerCase()
+    );
+
+    if(matches.length === 0){
+      throw new Error(
+        'Could not find "' + filename +
+        '" anywhere in the GitHub repository.'
+      );
+    }
+
+    if(matches.length > 1){
+      throw new Error(
+        'Found multiple "' + filename + '" files in the repository:\n\n' +
+        matches.map(x => x.path).join('\n') +
+        '\n\nThe updater stopped so it does not replace the wrong file.'
+      );
+    }
+
+    found[filename] = matches[0].path;
+  }
+
+  return found;
+}
+
+function rawURL(repoPath){
+  return 'https://raw.githubusercontent.com/' +
+    OWNER + '/' + REPO + '/' + BRANCH + '/' +
+    repoPath.split('/').map(encodeURIComponent).join('/');
+}
+
+async function updateFile(localName, repoPath, rootHandle){
+  setStatus(
+    'Downloading latest ' + localName + '...\n' +
+    'GitHub path: ' + repoPath
+  );
+
+  const response = await fetch(rawURL(repoPath), {
+    cache: 'no-store'
+  });
+
+  if(!response.ok){
+    throw new Error(
+      localName + ': HTTP ' + response.status + ' ' + response.statusText +
+      '\nGitHub path: ' + repoPath
+    );
+  }
+
+  const target = await rootHandle.getFileHandle(localName, {
+    create: true
+  });
+
+  const writable = await target.createWritable();
+
+  try{
+    if(response.body){
+      const reader = response.body.getReader();
+
+      while(true){
+        const {done, value} = await reader.read();
+        if(done) break;
+        await writable.write(value);
+      }
+    }else{
+      await writable.write(await response.blob());
+    }
+
+    await writable.close();
+  }catch(error){
+    try{
+      await writable.abort();
+    }catch(_){}
+
+    throw new Error(localName + ': ' + error.message);
+  }
+}
+
+startButton.onclick = async () => {
+  startButton.disabled = true;
+  setProgress(0);
+
+  try{
+    if(!window.showDirectoryPicker){
+      throw new Error(
+        'Your browser does not support the File System Access API. ' +
+        'Open this HTML in a current Chrome, Edge, or Opera browser.'
+      );
+    }
+
+    setStatus(
+      'Choose your existing Chimpanzini folder.\n' +
+      'Choose the folder that already contains your launcher.'
+    );
+
+    const root = await window.showDirectoryPicker({
+      mode: 'readwrite'
+    });
+
+    setStatus('Checking the selected Chimpanzini folder...');
+
+    let existingCount = 0;
+
+    for(const filename of FILES){
+      try{
+        await root.getFileHandle(filename);
+        existingCount++;
+      }catch(_){}
+    }
+
+    if(existingCount === 0){
+      throw new Error(
+        'This does not appear to be your Chimpanzini folder.\n\n' +
+        'Neither launcher file was found in the selected folder.'
+      );
+    }
+
+    setStatus(
+      'Searching the GitHub repository for the latest launcher files...'
+    );
+
+    const tree = await getRepositoryTree();
+    const paths = findExactFiles(tree);
+
+    setStatus(
+      'Found both launcher files!\n\n' +
+      'index.html → ' + paths['index.html'] + '\n' +
+      'chimpanzinikiosk.html → ' + paths['chimpanzinikiosk.html'] +
+      '\n\nUpdating both files...'
+    );
+
+    let completed = 0;
+
+    await Promise.all(
+      FILES.map(async filename => {
+        await updateFile(filename, paths[filename], root);
+        completed++;
+        setProgress((completed / FILES.length) * 100);
+
+        setStatus(
+          'Updating Chimpanzini...\n' +
+          completed + ' / ' + FILES.length + ' files replaced.'
+        );
+      })
+    );
+
+    setProgress(100);
+
+    setStatus(
+      'Update complete!\n\n' +
+      '✓ index.html replaced\n' +
+      '✓ chimpanzinikiosk.html replaced\n\n' +
+      'The updater searched the repository automatically and found:\n' +
+      '• ' + paths['index.html'] + '\n' +
+      '• ' + paths['chimpanzinikiosk.html'] + '\n\n' +
+      'All other Chimpanzini files were left untouched.'
+    );
+
+  }catch(error){
+    console.error(error);
+
+    if(error.name === 'AbortError'){
+      setStatus('Update cancelled.');
+    }else{
+      setProgress(0);
+      setStatus('Update failed:\n' + error.message);
+    }
+  }finally{
+    startButton.disabled = false;
+  }
+};
+</script>
+</body>
+</html>

@@ -1784,6 +1784,16 @@ function renderPorts(){
 
         };
 
+        /* Start reading/decoding before the click lands. */
+
+        const warm = () => {
+            preparePort(port).catch(() => {});
+        };
+
+        card.addEventListener("pointerenter", warm, { once:true });
+        card.addEventListener("pointerdown", warm, { once:true });
+        card.addEventListener("focus", warm, { once:true });
+
 
         portsGrid.appendChild(card);
 
@@ -3455,6 +3465,124 @@ async function getPortFile(port){
    PLAY PORT
 ========================================================= */
 
+/*
+    Speed notes:
+    - Base64 ports are decoded by the browser's native decoder
+      (Uint8Array.fromBase64 when available, otherwise fetch() on a
+      data: URL) instead of atob + a per-byte JS loop.
+    - The port is prepared as soon as the pointer is over its card
+      (or pressed), so by the time it's clicked the work is done.
+    - The player opens instantly with a loading message rather than
+      staying on the grid until everything is ready.
+*/
+
+const portBlobCache = new Map();
+
+async function decodeBase64ToBlob(text, type){
+
+    const clean = /\s/.test(text)
+        ? text.replace(/\s/g, "")
+        : text;
+
+    if(typeof Uint8Array.fromBase64 === "function"){
+
+        return new Blob(
+            [Uint8Array.fromBase64(clean)],
+            { type }
+        );
+
+    }
+
+    const response =
+        await fetch(
+            "data:application/octet-stream;base64," + clean
+        );
+
+    const blob = await response.blob();
+
+    return blob.slice(0, blob.size, type);
+
+}
+
+function preparePort(port){
+
+    const key = port.path;
+
+    if(portBlobCache.has(key)){
+        return portBlobCache.get(key);
+    }
+
+    /* Only keep the most recent few - decoded ports can be large. */
+
+    while(portBlobCache.size >= 2){
+        portBlobCache.delete(
+            portBlobCache.keys().next().value
+        );
+    }
+
+    const promise = (async () => {
+
+        const file = await getPortFile(port);
+
+        const extension = getExtension(file.name);
+
+        if(extension === "b64"){
+
+            try{
+
+                return await decodeBase64ToBlob(
+                    await file.text(),
+                    "text/html"
+                );
+
+            }catch(error){
+
+                throw new Error(
+                    "This .b64 file is not valid Base64."
+                );
+
+            }
+
+        }
+
+        return file;
+
+    })();
+
+    promise.catch(() => portBlobCache.delete(key));
+
+    portBlobCache.set(key, promise);
+
+    return promise;
+
+}
+
+function showPortLoading(show){
+
+    let box = document.getElementById("portLoading");
+
+    if(!box){
+
+        box = document.createElement("div");
+
+        box.id = "portLoading";
+
+        box.textContent = "Loading port...";
+
+        box.style.cssText =
+            "position:absolute;inset:0;" +
+            "align-items:center;justify-content:center;" +
+            "color:#8d96a5;font-size:18px;z-index:5;" +
+            "pointer-events:none;";
+
+        player.appendChild(box);
+
+    }
+
+    box.style.display = show ? "flex" : "none";
+
+}
+
 async function playPort(port){
 
     try{
@@ -3473,128 +3601,59 @@ async function playPort(port){
         }
 
 
-        const file =
-            await getPortFile(
-                port
-            );
-
-
-        const extension =
-            getExtension(
-                file.name
-            );
-
-
-        /*
-            Normal HTML.
-        */
-
-        if(
-            extension === "html" ||
-            extension === "htm"
-        ){
-
-            activeBlobUrl =
-                URL.createObjectURL(
-                    file
-                );
-
-
-            portFrame.src =
-                activeBlobUrl;
-
-        }
-
-
-        /*
-            Base64 HTML.
-        */
-
-        else if(
-            extension === "b64"
-        ){
-
-            const text =
-                await file.text();
-
-
-            let decoded;
-
-
-            try{
-
-                decoded =
-                    atob(
-                        text.replace(
-                            /\s/g,
-                            ""
-                        )
-                    );
-
-            }catch(error){
-
-                throw new Error(
-                    "This .b64 file is not valid Base64."
-                );
-
-            }
-
-
-            const bytes =
-                new Uint8Array(
-                    decoded.length
-                );
-
-
-            for(
-                let i=0;
-                i<decoded.length;
-                i++
-            ){
-
-                bytes[i] =
-                    decoded.charCodeAt(i);
-
-            }
-
-
-            const htmlBlob =
-                new Blob(
-                    [bytes],
-                    {
-                        type:"text/html"
-                    }
-                );
-
-
-            activeBlobUrl =
-                URL.createObjectURL(
-                    htmlBlob
-                );
-
-
-            portFrame.src =
-                activeBlobUrl;
-
-        }
-
+        /* Open the player right away. */
 
         gameElement.hidden =
             true;
 
-
         portFrame.hidden =
-            false;
-
+            true;
 
         player.classList.remove(
             "hidden"
         );
 
+        showPortLoading(true);
+
+
+        const blob =
+            await preparePort(
+                port
+            );
+
+        /* Cancelled (Back pressed) while loading. */
+
+        if(gameStopped){
+            return;
+        }
+
+
+        activeBlobUrl =
+            URL.createObjectURL(
+                blob
+            );
+
+        portFrame.addEventListener(
+            "load",
+            () => showPortLoading(false),
+            { once:true }
+        );
+
+        portFrame.src =
+            activeBlobUrl;
+
+        portFrame.hidden =
+            false;
+
     }catch(error){
 
         console.error(error);
 
+        showPortLoading(false);
+
+        player.classList.add(
+            "hidden"
+        );
 
         alert(
             "Could not start port:\n\n" +
@@ -3723,6 +3782,14 @@ function stopRunningGame(){
     }
 
     window.EJS_emulator = null;
+
+    portBlobCache.clear();
+
+    const loadingBox = document.getElementById("portLoading");
+
+    if(loadingBox){
+        loadingBox.style.display = "none";
+    }
 
 }
 
