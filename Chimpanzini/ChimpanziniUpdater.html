@@ -96,8 +96,8 @@ const REPO = 'ChimpanziniKiosk';
 const BRANCH = 'main';
 
 const FILES = [
-  'index.html',
-  'chimpanzinikiosk.html'
+  { source: 'index.html', localDir: [], localName: 'index.html' },
+  { source: 'ChimpanziniKiosk.html', localDir: ['SELECT'], localName: 'ChimpanziniKiosk.html' }
 ];
 
 const API =
@@ -145,7 +145,8 @@ async function getRepositoryTree(){
 function findExactFiles(tree){
   const found = {};
 
-  for(const filename of FILES){
+  for(const file of FILES){
+    const filename = file.source;
     const matches = tree.filter(item =>
       item.path.split('/').pop().toLowerCase() === filename.toLowerCase()
     );
@@ -177,7 +178,8 @@ function rawURL(repoPath){
     repoPath.split('/').map(encodeURIComponent).join('/');
 }
 
-async function updateFile(localName, repoPath, rootHandle){
+async function updateFile(file, repoPath, rootHandle){
+  const localName = file.localName;
   setStatus(
     'Downloading latest ' + localName + '...\n' +
     'GitHub path: ' + repoPath
@@ -194,7 +196,12 @@ async function updateFile(localName, repoPath, rootHandle){
     );
   }
 
-  const target = await rootHandle.getFileHandle(localName, {
+  let targetDir = rootHandle;
+  for(const dirName of file.localDir){
+    targetDir = await targetDir.getDirectoryHandle(dirName, {create: false});
+  }
+
+  const target = await targetDir.getFileHandle(localName, {
     create: true
   });
 
@@ -248,9 +255,13 @@ startButton.onclick = async () => {
 
     let existingCount = 0;
 
-    for(const filename of FILES){
+    for(const file of FILES){
       try{
-        await root.getFileHandle(filename);
+        let checkDir = root;
+        for(const dirName of file.localDir){
+          checkDir = await checkDir.getDirectoryHandle(dirName, {create: false});
+        }
+        await checkDir.getFileHandle(file.localName);
         existingCount++;
       }catch(_){}
     }
@@ -272,15 +283,15 @@ startButton.onclick = async () => {
     setStatus(
       'Found both launcher files!\n\n' +
       'index.html → ' + paths['index.html'] + '\n' +
-      'chimpanzinikiosk.html → ' + paths['chimpanzinikiosk.html'] +
+      'ChimpanziniKiosk.html → SELECT/ChimpanziniKiosk.html (local)\nGitHub source → ' + paths['ChimpanziniKiosk.html'] +
       '\n\nUpdating both files...'
     );
 
     let completed = 0;
 
     await Promise.all(
-      FILES.map(async filename => {
-        await updateFile(filename, paths[filename], root);
+      FILES.map(async file => {
+        await updateFile(file, paths[file.source], root);
         completed++;
         setProgress((completed / FILES.length) * 100);
 
@@ -296,10 +307,10 @@ startButton.onclick = async () => {
     setStatus(
       'Update complete!\n\n' +
       '✓ index.html replaced\n' +
-      '✓ chimpanzinikiosk.html replaced\n\n' +
+      '✓ ChimpanziniKiosk.html replaced\n\n' +
       'The updater searched the repository automatically and found:\n' +
       '• ' + paths['index.html'] + '\n' +
-      '• ' + paths['chimpanzinikiosk.html'] + '\n\n' +
+      '• ' + paths['ChimpanziniKiosk.html'] + '\n\n' +
       'All other Chimpanzini files were left untouched.'
     );
 
