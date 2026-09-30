@@ -519,81 +519,6 @@ main{
 <script>
 
 /* =========================================================
-   RUNTIME TRACKER
-
-   A running game can keep going in the background after you
-   leave it (music, emulator threads, game loops). To be able
-   to really shut it down, remember every AudioContext and
-   Worker created by this page so leaveGame() can close them.
-   This must run before any emulator code loads.
-========================================================= */
-
-const trackedAudioContexts = new Set();
-
-const trackedWorkers = new Set();
-
-(function(){
-
-    for(const name of ["AudioContext","webkitAudioContext"]){
-
-        const Original = window[name];
-
-        if(typeof Original !== "function"){
-            continue;
-        }
-
-        try{
-
-            window[name] = class extends Original {
-
-                constructor(...args){
-
-                    super(...args);
-
-                    trackedAudioContexts.add(this);
-
-                }
-
-            };
-
-        }catch(error){
-
-            console.warn("Could not track " + name, error);
-
-        }
-
-    }
-
-    if(typeof window.Worker === "function"){
-
-        const OriginalWorker = window.Worker;
-
-        try{
-
-            window.Worker = class extends OriginalWorker {
-
-                constructor(...args){
-
-                    super(...args);
-
-                    trackedWorkers.add(this);
-
-                }
-
-            };
-
-        }catch(error){
-
-            console.warn("Could not track Worker", error);
-
-        }
-
-    }
-
-})();
-
-
-/* =========================================================
    CONFIG
 ========================================================= */
 
@@ -633,7 +558,20 @@ const CONFIG = {
         settings menu, so autosave can't be silently turned off from
         inside the player.
     */
-    autosaveIntervalMs: 20000
+    autosaveIntervalMs: 20000,
+
+    /*
+        Which EmulatorJS core to use for Nintendo DS.
+
+        Plain "nds" lets EmulatorJS pick its default (usually
+        melonDS in newer builds), which can fail to load when the
+        launcher is opened from file:// or that core's files are not
+        in data/cores. "desmume2015" is the lightweight core that
+        works without threads. If that core's files are missing from
+        your data/cores folder, set this to whichever nds core you
+        do have (e.g. "melonds" or "desmume").
+    */
+    ndsCore: "desmume2015"
 };
 
 
@@ -1132,7 +1070,7 @@ const searchElement =
 const player =
     document.getElementById("player");
 
-let gameElement =
+const gameElement =
     document.getElementById("game");
 
 const portFrame =
@@ -1783,16 +1721,6 @@ function renderPorts(){
             playPort(port);
 
         };
-
-        /* Start reading/decoding before the click lands. */
-
-        const warm = () => {
-            preparePort(port).catch(() => {});
-        };
-
-        card.addEventListener("pointerenter", warm, { once:true });
-        card.addEventListener("pointerdown", warm, { once:true });
-        card.addEventListener("focus", warm, { once:true });
 
 
         portsGrid.appendChild(card);
@@ -3128,16 +3056,6 @@ async function playGame(game){
 
     try{
 
-        if(emulatorUsed || gameStopped){
-
-            resetEmulatorHost();
-
-        }
-
-        emulatorUsed = true;
-
-        gameStopped = false;
-
         if(activeBlobUrl){
 
             URL.revokeObjectURL(
@@ -3186,7 +3104,16 @@ async function playGame(game){
 
 
         window.EJS_core =
-            game.system;
+            game.system === "nds"
+                ? CONFIG.ndsCore
+                : game.system;
+
+        console.log(
+            "EmulatorJS core:",
+            window.EJS_core,
+            "| data path:",
+            CONFIG.emulatorData
+        );
 
 
         window.EJS_gameName =
@@ -3465,129 +3392,9 @@ async function getPortFile(port){
    PLAY PORT
 ========================================================= */
 
-/*
-    Speed notes:
-    - Base64 ports are decoded by the browser's native decoder
-      (Uint8Array.fromBase64 when available, otherwise fetch() on a
-      data: URL) instead of atob + a per-byte JS loop.
-    - The port is prepared as soon as the pointer is over its card
-      (or pressed), so by the time it's clicked the work is done.
-    - The player opens instantly with a loading message rather than
-      staying on the grid until everything is ready.
-*/
-
-const portBlobCache = new Map();
-
-async function decodeBase64ToBlob(text, type){
-
-    const clean = /\s/.test(text)
-        ? text.replace(/\s/g, "")
-        : text;
-
-    if(typeof Uint8Array.fromBase64 === "function"){
-
-        return new Blob(
-            [Uint8Array.fromBase64(clean)],
-            { type }
-        );
-
-    }
-
-    const response =
-        await fetch(
-            "data:application/octet-stream;base64," + clean
-        );
-
-    const blob = await response.blob();
-
-    return blob.slice(0, blob.size, type);
-
-}
-
-function preparePort(port){
-
-    const key = port.path;
-
-    if(portBlobCache.has(key)){
-        return portBlobCache.get(key);
-    }
-
-    /* Only keep the most recent few - decoded ports can be large. */
-
-    while(portBlobCache.size >= 2){
-        portBlobCache.delete(
-            portBlobCache.keys().next().value
-        );
-    }
-
-    const promise = (async () => {
-
-        const file = await getPortFile(port);
-
-        const extension = getExtension(file.name);
-
-        if(extension === "b64"){
-
-            try{
-
-                return await decodeBase64ToBlob(
-                    await file.text(),
-                    "text/html"
-                );
-
-            }catch(error){
-
-                throw new Error(
-                    "This .b64 file is not valid Base64."
-                );
-
-            }
-
-        }
-
-        return file;
-
-    })();
-
-    promise.catch(() => portBlobCache.delete(key));
-
-    portBlobCache.set(key, promise);
-
-    return promise;
-
-}
-
-function showPortLoading(show){
-
-    let box = document.getElementById("portLoading");
-
-    if(!box){
-
-        box = document.createElement("div");
-
-        box.id = "portLoading";
-
-        box.textContent = "Loading port...";
-
-        box.style.cssText =
-            "position:absolute;inset:0;" +
-            "align-items:center;justify-content:center;" +
-            "color:#8d96a5;font-size:18px;z-index:5;" +
-            "pointer-events:none;";
-
-        player.appendChild(box);
-
-    }
-
-    box.style.display = show ? "flex" : "none";
-
-}
-
 async function playPort(port){
 
     try{
-
-        gameStopped = false;
 
         if(activeBlobUrl){
 
@@ -3601,59 +3408,128 @@ async function playPort(port){
         }
 
 
-        /* Open the player right away. */
+        const file =
+            await getPortFile(
+                port
+            );
+
+
+        const extension =
+            getExtension(
+                file.name
+            );
+
+
+        /*
+            Normal HTML.
+        */
+
+        if(
+            extension === "html" ||
+            extension === "htm"
+        ){
+
+            activeBlobUrl =
+                URL.createObjectURL(
+                    file
+                );
+
+
+            portFrame.src =
+                activeBlobUrl;
+
+        }
+
+
+        /*
+            Base64 HTML.
+        */
+
+        else if(
+            extension === "b64"
+        ){
+
+            const text =
+                await file.text();
+
+
+            let decoded;
+
+
+            try{
+
+                decoded =
+                    atob(
+                        text.replace(
+                            /\s/g,
+                            ""
+                        )
+                    );
+
+            }catch(error){
+
+                throw new Error(
+                    "This .b64 file is not valid Base64."
+                );
+
+            }
+
+
+            const bytes =
+                new Uint8Array(
+                    decoded.length
+                );
+
+
+            for(
+                let i=0;
+                i<decoded.length;
+                i++
+            ){
+
+                bytes[i] =
+                    decoded.charCodeAt(i);
+
+            }
+
+
+            const htmlBlob =
+                new Blob(
+                    [bytes],
+                    {
+                        type:"text/html"
+                    }
+                );
+
+
+            activeBlobUrl =
+                URL.createObjectURL(
+                    htmlBlob
+                );
+
+
+            portFrame.src =
+                activeBlobUrl;
+
+        }
+
 
         gameElement.hidden =
             true;
 
+
         portFrame.hidden =
-            true;
+            false;
+
 
         player.classList.remove(
             "hidden"
         );
 
-        showPortLoading(true);
-
-
-        const blob =
-            await preparePort(
-                port
-            );
-
-        /* Cancelled (Back pressed) while loading. */
-
-        if(gameStopped){
-            return;
-        }
-
-
-        activeBlobUrl =
-            URL.createObjectURL(
-                blob
-            );
-
-        portFrame.addEventListener(
-            "load",
-            () => showPortLoading(false),
-            { once:true }
-        );
-
-        portFrame.src =
-            activeBlobUrl;
-
-        portFrame.hidden =
-            false;
-
     }catch(error){
 
         console.error(error);
 
-        showPortLoading(false);
-
-        player.classList.add(
-            "hidden"
-        );
 
         alert(
             "Could not start port:\n\n" +
@@ -3669,210 +3545,25 @@ async function playPort(port){
    LEAVE GAME
 ========================================================= */
 
-/*
-    Really stops whatever is running - not just hides it.
-
-    - Ports: the iframe is navigated to about:blank and removed
-      from the page, which destroys its window, scripts, timers
-      and audio.
-    - Emulators: the core's main loop is stopped, every
-      AudioContext and Worker the page created is closed /
-      terminated, and the game element is emptied.
-*/
-
-let gameStopped = false;
-
-let emulatorUsed = false;
-
-function stopRunningGame(){
-
-    gameStopped = true;
-
-
-    /* ---- Port iframe ---- */
-
-    try{
-
-        portFrame.hidden = true;
-
-        portFrame.src = "about:blank";
-
-        if(portFrame.contentWindow){
-
-            try{
-                portFrame.contentWindow.stop();
-            }catch(error){}
-
-        }
-
-    }catch(error){
-
-        console.warn("Could not stop port frame:", error);
-
-    }
-
-    if(activeBlobUrl){
-
-        URL.revokeObjectURL(activeBlobUrl);
-
-        activeBlobUrl = null;
-
-    }
-
-
-    /* ---- Emulator ---- */
-
-    const emulator = window.EJS_emulator;
-
-    if(emulator){
-
-        try{
-
-            if(typeof emulator.pause === "function"){
-                emulator.pause(true);
-            }
-
-        }catch(error){}
-
-        try{
-
-            if(
-                emulator.gameManager &&
-                typeof emulator.gameManager.toggleMainLoop === "function"
-            ){
-                emulator.gameManager.toggleMainLoop(0);
-            }
-
-        }catch(error){}
-
-    }
-
-    for(const context of trackedAudioContexts){
-
-        try{
-            context.close();
-        }catch(error){}
-
-    }
-
-    trackedAudioContexts.clear();
-
-    for(const worker of trackedWorkers){
-
-        try{
-            worker.terminate();
-        }catch(error){}
-
-    }
-
-    trackedWorkers.clear();
-
-    try{
-
-        gameElement.innerHTML = "";
-
-        gameElement.hidden = true;
-
-    }catch(error){}
-
-    const oldLoader = document.getElementById("emulatorjs-loader");
-
-    if(oldLoader){
-        oldLoader.remove();
-    }
-
-    window.EJS_emulator = null;
-
-    portBlobCache.clear();
-
-    const loadingBox = document.getElementById("portLoading");
-
-    if(loadingBox){
-        loadingBox.style.display = "none";
-    }
-
-}
-
-/*
-    Gets the emulator host back to a clean state so another
-    game can be started without reloading the page (only used
-    when the page couldn't reload itself - see leaveGame()).
-*/
-function resetEmulatorHost(){
-
-    const fresh = document.createElement("div");
-
-    fresh.id = "game";
-
-    gameElement.replaceWith(fresh);
-
-    gameElement = fresh;
-
-    delete window.EJS_emulator;
-
-    gameStopped = false;
-
-}
-
-let leaving = false;
-
 async function leaveGame(){
-
-    if(leaving){
-        return;
-    }
-
-    leaving = true;
-
 
     /*
         Give EmulatorJS a chance to write out the latest save
-        before everything is shut down - otherwise whatever
-        changed since the last autosave tick is lost. No-ops
-        instantly for ports (no EJS_emulator) or if nothing
-        has changed since the last save.
+        before the reload below wipes everything - otherwise
+        whatever changed since the last autosave tick is lost.
+        No-ops instantly for ports (no EJS_emulator) or if
+        nothing has changed since the last save.
     */
 
-    try{
-        await flushEmulatorSaveBeforeExit();
-    }catch(error){
-        console.warn("Save flush failed:", error);
-    }
+    await flushEmulatorSaveBeforeExit();
 
 
     /*
-        Shut the game down right now, whatever happens next.
+        Reloading completely resets EmulatorJS and
+        the port iframe.
     */
 
-    stopRunningGame();
-
-    player.classList.add("hidden");
-
-
-    /*
-        Reloading gives a completely fresh page. Some setups
-        (for example a file:// page in a locked-down frame)
-        block the reload, so don't depend on it: if we're
-        still here shortly afterwards, carry on in place with
-        the game already stopped.
-    */
-
-    try{
-        location.reload();
-    }catch(error){
-        console.warn("Reload blocked:", error);
-    }
-
-    setTimeout(
-        () => {
-
-            leaving = false;
-
-            render();
-
-        },
-        1500
-    );
+    location.reload();
 
 }
 
@@ -3963,10 +3654,6 @@ backButton.onclick =
 
 function triggerBestEffortSave(){
 
-    if(gameStopped){
-        return;
-    }
-
     const emulator =
         window.EJS_emulator;
 
@@ -3978,9 +3665,7 @@ function triggerBestEffortSave(){
             "function"
     ){
 
-        try{
-            emulator.gameManager.saveSaveFiles();
-        }catch(error){}
+        emulator.gameManager.saveSaveFiles();
 
     }
 
