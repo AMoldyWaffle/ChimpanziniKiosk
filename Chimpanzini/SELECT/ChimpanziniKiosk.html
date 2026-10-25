@@ -216,12 +216,14 @@ function render(){
 }
 
 /* =========================================================
-   SHARED SELECT FOLDER HANDLER
-   Reuses the exact handler saved by ../index.html.
+   SHARED ROOT FOLDER HANDLER
+   The saved directory handle is now the selected ROOT folder.
+   The actual SELECT folder is a child directory inside that root.
 ========================================================= */
 const HANDLE_DB_NAME = "gooncave-launcher";
 const HANDLE_STORE = "handles";
 const HANDLE_KEY = "selectFolder";
+let rootDirectory = null;
 let selectDirectory = null;
 
 function openHandleDB(){
@@ -238,7 +240,7 @@ async function getRememberedSelectFolder(){
     const tx=db.transaction(HANDLE_STORE,"readonly");
     const request=tx.objectStore(HANDLE_STORE).get(HANDLE_KEY);
     request.onsuccess=()=>resolve(request.result||null);
-    request.onerror=()=>reject(request.error||new Error("Could not read the saved SELECT folder."));
+    request.onerror=()=>reject(request.error||new Error("Could not read the saved root folder."));
   });
 }
 
@@ -249,7 +251,9 @@ async function restoreSelectFolder(){
 
     const permission=await handle.queryPermission({mode:"readwrite"});
     if(permission==="granted"){
-      selectDirectory=handle;
+      const selectHandle=await handle.getDirectoryHandle("SELECT");
+      rootDirectory=handle;
+      selectDirectory=selectHandle;
       updateDownloadStatus();
       return true;
     }
@@ -257,7 +261,7 @@ async function restoreSelectFolder(){
     updateDownloadStatus(false);
     return false;
   }catch(error){
-    console.warn("Could not restore SELECT handler:",error);
+    console.warn("Could not restore SELECT folder from the saved root:",error);
     updateDownloadStatus(false);
     return false;
   }
@@ -271,14 +275,21 @@ function updateDownloadStatus(connected=!!selectDirectory){
 }
 
 async function ensureSelectFolder(){
-  if(selectDirectory){
-    const permission=await selectDirectory.queryPermission({mode:"readwrite"});
-    if(permission==="granted") return selectDirectory;
+  if(rootDirectory){
+    const permission=await rootDirectory.queryPermission({mode:"readwrite"});
+    if(permission==="granted"){
+      try{
+        selectDirectory=await rootDirectory.getDirectoryHandle("SELECT");
+        return selectDirectory;
+      }catch(_){
+        throw new Error('The selected root folder does not contain a "SELECT" subfolder.');
+      }
+    }
   }
 
   const remembered=await getRememberedSelectFolder();
   if(!remembered){
-    throw new Error("No SELECT folder is connected. Open the local launcher, choose your SELECT folder, then return to the Kiosk.");
+    throw new Error('No root folder is connected. Open the local launcher, select the folder that contains "SELECT", then return to the Kiosk.');
   }
 
   let permission=await remembered.queryPermission({mode:"readwrite"});
@@ -287,17 +298,25 @@ async function ensureSelectFolder(){
   }
 
   if(permission!=="granted"){
-    throw new Error("Browser permission for the saved SELECT folder was not granted.");
+    throw new Error("Browser permission for the saved root folder was not granted.");
   }
 
-  selectDirectory=remembered;
+  let selectHandle;
+  try{
+    selectHandle=await remembered.getDirectoryHandle("SELECT");
+  }catch(_){
+    throw new Error('The selected root folder does not contain a "SELECT" subfolder. Choose the parent folder that contains SELECT.');
+  }
+
+  rootDirectory=remembered;
+  selectDirectory=selectHandle;
   updateDownloadStatus();
   return selectDirectory;
 }
 
 async function getDownloadDirectory(kind){
-  const root=await ensureSelectFolder();
-  return root.getDirectoryHandle(kind==="port"?"Ports":"ROMs",{create:true});
+  const selectRoot=await ensureSelectFolder();
+  return selectRoot.getDirectoryHandle(kind==="port"?"Ports":"ROMs",{create:true});
 }
 
 async function writeBlobToDirectory(directory,fileName,blob){
@@ -401,16 +420,27 @@ async function reconnectSelectFromKiosk(){
   try{
     const handle=await getRememberedSelectFolder();
     if(!handle){
-      alert("No saved SELECT folder was found. Go back to the local launcher and choose your SELECT folder first.");
+      alert('No saved root folder was found. Go back to the local launcher and select the parent folder that contains "SELECT".');
       return;
     }
     const permission=await handle.requestPermission({mode:"readwrite"});
     if(permission!=="granted"){
       updateDownloadStatus(false);
-      alert("SELECT folder permission was not granted.");
+      alert("Root folder permission was not granted.");
       return;
     }
-    selectDirectory=handle;
+
+    let selectHandle;
+    try{
+      selectHandle=await handle.getDirectoryHandle("SELECT");
+    }catch(_){
+      updateDownloadStatus(false);
+      alert('The selected root folder does not contain a "SELECT" subfolder. Choose the parent folder that contains SELECT.');
+      return;
+    }
+
+    rootDirectory=handle;
+    selectDirectory=selectHandle;
     updateDownloadStatus();
   }catch(error){
     console.error("Could not reconnect SELECT:",error);
