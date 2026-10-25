@@ -4,9 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- Lets this page run fully offline via file:// - see data/offline-shim.js -->
-<script src="data/offline-shim.js"></script>
-
 <title>CHIMPANZINI PANANINI</title>
 
 <style>
@@ -404,7 +401,7 @@ main{
             id="chooseFolder"
             class="btn primary"
         >
-            Choose SELECT Folder
+            Choose Root Folder
         </button>
 
         <button
@@ -426,8 +423,8 @@ main{
         class="status"
     >
         <strong>No folder selected.</strong>
-        Click "Choose SELECT Folder" and select your
-        <b>SELECT</b> folder.
+        Click "Choose Root Folder" and select the folder
+        that contains <b>index.html</b>.
     </div>
 
 
@@ -527,12 +524,18 @@ const CONFIG = {
     title: "CHIMPANZINI PANANINI",
 
     /*
-        The one folder the user selects.
+        The user selects the ROOT folder (the one that holds
+        index.html, data, data-cache and SELECT).
+
+        Game content lives in this subfolder of the root. If the
+        root has no folder with this name, the root itself is
+        searched for ROMs / Ports / Saves instead.
     */
     selectFolder: "SELECT",
 
     /*
-        Folders inside SELECT.
+        Folders inside SELECT (or inside the root if there is
+        no SELECT folder).
     */
     romFolder: "ROMs",
 
@@ -543,11 +546,11 @@ const CONFIG = {
     /*
         EmulatorJS official CDN.
     */
-    // EmulatorJS data is beside the launcher at the root, or one level
-    // above when this launcher is opened from the SELECT folder.
-    emulatorData: /[\\/]SELECT[\\/]/i.test(location.pathname)
-        ? "../data/"
-        : "./data/",
+    // Default (only used if the chosen root has no "data" folder).
+    // Once a root folder is chosen this becomes a virtual path that is
+    // served straight out of <root>/data/ - see ROOT FILE SYSTEM below,
+    // so index.html can live anywhere.
+    emulatorData: "./data/",
 
     /*
         How often (in milliseconds) EmulatorJS is forced to flush the
@@ -723,13 +726,17 @@ const SYSTEMS = {
    GLOBAL STATE
 ========================================================= */
 
-let selectDirectory = null;
+let rootDirectory_ = null;   // the folder the user picked (root)
+
+let selectDirectory = null;  // where ROMs/Ports/Saves live (SELECT inside root, or root)
 
 let romDirectory = null;
 
 let portsDirectory = null;
 
 let saveDirectory = null;
+
+let emulatorFilesFound = false;
 
 let games = [];
 
@@ -1022,11 +1029,11 @@ async function tryRestoreSelectFolder(){
 
                     Click
 
-                    <b>Choose SELECT Folder</b>
+                    <b>Choose Root Folder</b>
 
-                    and select:
+                    and select the folder that contains
 
-                    <b>${escapeHTML(CONFIG.title)}/SELECT</b>
+                    <b>index.html</b>
 
                 `;
 
@@ -1037,6 +1044,845 @@ async function tryRestoreSelectFolder(){
     }
 
 }
+
+
+/* =========================================================
+   ROOT FILE SYSTEM
+
+   index.html can live anywhere. The emulator files
+   (<root>/data/...) are read out of the folder the user picked
+   and served to EmulatorJS under a virtual address:
+
+       https://chimpanzini-root.invalid/<path inside root>
+
+   EmulatorJS asks for files with fetch(), XMLHttpRequest and
+   <script>/<link> tags - each is intercepted below and answered
+   from the picked folder. Anything that isn't under the virtual
+   address passes through untouched.
+========================================================= */
+
+const VFS_BASE =
+    "https://chimpanzini-root.invalid/";
+
+/* Used by the fallback picker (no folder handle available). */
+const vfsFiles = new Map();
+
+const vfsBlobUrls = new Map();
+
+const vfsDecoded = new Map();
+
+
+const VFS_MIME = {
+    js:"text/javascript",
+    mjs:"text/javascript",
+    css:"text/css",
+    json:"application/json",
+    html:"text/html",
+    htm:"text/html",
+    wasm:"application/wasm",
+    svg:"image/svg+xml",
+    png:"image/png",
+    jpg:"image/jpeg",
+    jpeg:"image/jpeg",
+    gif:"image/gif",
+    webp:"image/webp",
+    ttf:"font/ttf",
+    woff:"font/woff",
+    woff2:"font/woff2"
+};
+
+
+function vfsMime(path){
+
+    const ext =
+        path.split(".").pop().toLowerCase();
+
+    return VFS_MIME[ext] ||
+        "application/octet-stream";
+
+}
+
+
+function vfsPathFromUrl(url, base){
+
+    let text =
+        String(url || "");
+
+    if(!text.startsWith(VFS_BASE)){
+
+        /*
+            Relative address: resolve it against the page's base
+            (a page opened from the root folder has a virtual base).
+        */
+
+        try{
+            text = new URL(text, base || document.baseURI).href;
+        }catch(error){
+            return null;
+        }
+
+        if(!text.startsWith(VFS_BASE)){
+            return null;
+        }
+
+    }
+
+    let path =
+        text.slice(VFS_BASE.length)
+            .split("#")[0]
+            .split("?")[0];
+
+    try{
+        path = decodeURIComponent(path);
+    }catch(error){}
+
+    /*
+        A page inside SELECT may ask for "./data/..." instead of
+        "../data/...". The data folders live in the root, so drop
+        the SELECT/ part.
+    */
+
+    path = path.replace(
+        /^select\/(data|data-cache)\//i,
+        "$1/"
+    );
+
+    return path;
+
+}
+
+
+async function vfsGetFile(path){
+
+    /*
+        Try the path as asked. If a data/... file isn't there,
+        also try the same file under data-cache/.
+    */
+
+    const candidates = [path];
+
+    if(path.startsWith("data/")){
+        candidates.push(
+            "data-cache/" + path.slice(5)
+        );
+    }
+
+    for(const candidate of candidates){
+
+        if(vfsFiles.has(candidate)){
+            return vfsFiles.get(candidate);
+        }
+
+        if(rootDirectory_){
+
+            try{
+
+                return await getFileFromPath(
+                    rootDirectory_,
+                    candidate
+                );
+
+            }catch(error){}
+
+        }
+
+    }
+
+    /*
+        Your data folder only holds loader.js; the other emulator
+        files live in data-cache/<name>.js as base64 inside a JS
+        string. Decode the wrapped copy.
+    */
+
+    if(path.startsWith("data/")){
+
+        try{
+
+            return await vfsReadWrapped(
+                path.slice(5)
+            );
+
+        }catch(error){}
+
+    }
+
+
+    /*
+        Not at the expected path. Search data/ and data-cache/
+        (any depth, any capitalisation) for the same file.
+    */
+
+    const index =
+        await vfsBuildIndex();
+
+    const wanted =
+        path.toLowerCase();
+
+    const rest =
+        wanted.replace(/^data\//, "");
+
+    const baseName =
+        rest.split("/").pop();
+
+    let match =
+        index.find(
+            item => item.toLowerCase() === wanted
+        );
+
+    if(!match){
+        match = index.find(
+            item => item.toLowerCase().endsWith("/" + rest)
+        );
+    }
+
+    if(!match){
+
+        const sameName =
+            index.filter(
+                item =>
+                    item.toLowerCase().split("/").pop() ===
+                    baseName
+            );
+
+        if(sameName.length === 1){
+            match = sameName[0];
+        }
+
+    }
+
+    if(match){
+
+        console.warn(
+            "[root FS] " + path + " found at " + match
+        );
+
+        if(vfsFiles.has(match)){
+            return vfsFiles.get(match);
+        }
+
+        return await getFileFromPath(
+            rootDirectory_,
+            match
+        );
+
+    }
+
+    if(!vfsListed){
+
+        vfsListed = true;
+
+
+    }
+
+    console.warn(
+        "[root FS] not found: " + path +
+        " (searched " + index.length +
+        " files in data/ and data-cache/)"
+    );
+
+    throw new Error(
+        "Not found in root folder: " + path
+    );
+
+}
+
+
+let vfsIndex = null;
+
+let vfsListed = false;
+
+/*
+    Read data-cache/<rel>.js, whose content is:
+
+        (window.__EJS_OFFLINE_CACHE__=...)["<rel>"]="<base64>";
+
+    and return the decoded bytes as a Blob.
+*/
+
+async function vfsReadWrapped(rel){
+
+    if(vfsDecoded.has(rel)){
+        return vfsDecoded.get(rel);
+    }
+
+    const wrappedPath =
+        "data-cache/" + rel + ".js";
+
+    let raw =
+        vfsFiles.get(wrappedPath);
+
+    if(!raw){
+
+        if(!rootDirectory_){
+            throw new Error("No wrapped file: " + wrappedPath);
+        }
+
+        raw = await getFileFromPath(
+            rootDirectory_,
+            wrappedPath
+        );
+
+    }
+
+    const text =
+        await raw.text();
+
+    const start =
+        text.indexOf(']="');
+
+    const end =
+        text.lastIndexOf('"');
+
+    if(start === -1 || end <= start + 3){
+
+        throw new Error(
+            "Unrecognised data-cache format: " + wrappedPath
+        );
+
+    }
+
+    const binary =
+        atob(text.slice(start + 3, end));
+
+    const bytes =
+        new Uint8Array(binary.length);
+
+    for(let i = 0; i < binary.length; i++){
+        bytes[i] = binary.charCodeAt(i);
+    }
+
+    const blob =
+        new Blob([bytes], { type:vfsMime(rel) });
+
+    vfsDecoded.set(rel, blob);
+
+    return blob;
+
+}
+
+
+async function vfsBuildIndex(){
+
+    if(vfsIndex){
+        return vfsIndex;
+    }
+
+    const list = [];
+
+    if(rootDirectory_){
+
+        const walk = async (directory, prefix) => {
+
+            for await (const [name, entry] of directory.entries()){
+
+                if(entry.kind === "directory"){
+                    await walk(entry, prefix + name + "/");
+                }else{
+                    list.push(prefix + name);
+                }
+
+            }
+
+        };
+
+        for(const top of ["data", "data-cache"]){
+
+            try{
+
+                await walk(
+                    await rootDirectory_
+                        .getDirectoryHandle(top),
+                    top + "/"
+                );
+
+            }catch(error){}
+
+        }
+
+    }else{
+
+        for(const key of vfsFiles.keys()){
+
+            if(
+                key.startsWith("data/") ||
+                key.startsWith("data-cache/")
+            ){
+                list.push(key);
+            }
+
+        }
+
+    }
+
+    vfsIndex = list;
+
+    return list;
+
+}
+
+
+async function vfsBlobUrl(path){
+
+    if(vfsBlobUrls.has(path)){
+        return vfsBlobUrls.get(path);
+    }
+
+    const file =
+        await vfsGetFile(path);
+
+    const url =
+        URL.createObjectURL(
+            file.slice(
+                0,
+                file.size,
+                vfsMime(path)
+            )
+        );
+
+    vfsBlobUrls.set(path, url);
+
+    return url;
+
+}
+
+
+function vfsResetCache(){
+
+    for(const url of vfsBlobUrls.values()){
+        URL.revokeObjectURL(url);
+    }
+
+    vfsBlobUrls.clear();
+
+    vfsDecoded.clear();
+
+    vfsFiles.clear();
+
+    vfsIndex = null;
+
+}
+
+
+/*
+    Point EmulatorJS at <root>/data/ if the root has one.
+*/
+
+async function setupEmulatorDataPath(){
+
+    emulatorFilesFound = false;
+
+    if(rootDirectory_){
+
+        try{
+
+            await rootDirectory_
+                .getDirectoryHandle("data");
+
+            emulatorFilesFound = true;
+
+        }catch(error){}
+
+    }else if(vfsFiles.size){
+
+        for(const key of vfsFiles.keys()){
+
+            if(key.startsWith("data/")){
+                emulatorFilesFound = true;
+                break;
+            }
+
+        }
+
+    }
+
+    CONFIG.emulatorData =
+        emulatorFilesFound
+            ? VFS_BASE + "data/"
+            : "./data/";
+
+}
+
+
+/* ---- hooks ----
+   Everything EmulatorJS (or a page opened from the root folder)
+   uses to load files is intercepted per window: fetch(),
+   XMLHttpRequest, <script>/<link> insertion, their src/href
+   properties, and the three helpers data/loader.js calls.
+   Installed on this window and on the Kiosk's iframe window. */
+
+function vfsInstallHooks(win){
+
+    if(win.__vfsHooksInstalled){
+        return;
+    }
+
+    win.__vfsHooksInstalled = true;
+
+    const pathOf =
+        url => vfsPathFromUrl(url, win.document.baseURI);
+
+
+    /* ---- fetch() ---- */
+
+    const nativeFetch =
+        win.fetch.bind(win);
+
+    win.fetch = async function(input, init){
+
+        const url =
+            typeof input === "string"
+                ? input
+                : (input && input.url) || String(input);
+
+        const path =
+            pathOf(url);
+
+        if(path === null){
+            return nativeFetch(input, init);
+        }
+
+        try{
+
+            const file =
+                await vfsGetFile(path);
+
+            return new win.Response(file, {
+                status:200,
+                headers:{
+                    "Content-Type":vfsMime(path)
+                }
+            });
+
+        }catch(error){
+
+            return new win.Response("Not found", {
+                status:404,
+                statusText:"Not Found"
+            });
+
+        }
+
+    };
+
+
+    /* ---- XMLHttpRequest ---- */
+
+    const xhrProto =
+        win.XMLHttpRequest.prototype;
+
+    const nativeXhrOpen =
+        xhrProto.open;
+
+    const nativeXhrSend =
+        xhrProto.send;
+
+    xhrProto.open = function(method, url){
+
+        const path =
+            pathOf(url);
+
+        if(path === null){
+            return nativeXhrOpen.apply(this, arguments);
+        }
+
+        /*
+            Park the request: the real open() happens in send(),
+            once the file has been read from the root folder.
+        */
+
+        this.__vfs = { path, method };
+
+        return nativeXhrOpen.call(
+            this,
+            method,
+            "data:,",
+            true
+        );
+
+    };
+
+    xhrProto.send = function(body){
+
+        const request = this.__vfs;
+
+        if(!request){
+            return nativeXhrSend.call(this, body);
+        }
+
+        this.__vfs = null;
+
+        vfsBlobUrl(request.path)
+            .then(url => {
+
+                nativeXhrOpen.call(
+                    this,
+                    request.method,
+                    url,
+                    true
+                );
+
+                nativeXhrSend.call(this);
+
+            })
+            .catch(() => {
+
+                /* Invalid blob address -> normal error event. */
+
+                nativeXhrOpen.call(
+                    this,
+                    request.method,
+                    "blob:" + location.origin + "/missing",
+                    true
+                );
+
+                nativeXhrSend.call(this);
+
+            });
+
+    };
+
+
+    /* ---- <script src> / <link href> insertion ---- */
+
+    const elementInfo = node => {
+
+        if(!node || node.nodeType !== 1){
+            return null;
+        }
+
+        let attr = null;
+
+        if(node.tagName === "SCRIPT"){
+            attr = "src";
+        }else if(node.tagName === "LINK"){
+            attr = "href";
+        }else{
+            return null;
+        }
+
+        const path =
+            pathOf(node.getAttribute(attr));
+
+        return path === null
+            ? null
+            : { attr, path };
+
+    };
+
+    for(const name of ["appendChild", "insertBefore"]){
+
+        const original =
+            win.Node.prototype[name];
+
+        win.Node.prototype[name] = function(){
+
+            const info =
+                elementInfo(arguments[0]);
+
+            if(!info){
+                return original.apply(this, arguments);
+            }
+
+            const node = arguments[0];
+
+            const args = arguments;
+
+            vfsBlobUrl(info.path)
+                .then(url => {
+
+                    node.setAttribute(info.attr, url);
+
+                    original.apply(this, args);
+
+                })
+                .catch(() => {
+
+                    /* Still insert: the load error fires onerror. */
+
+                    original.apply(this, args);
+
+                });
+
+            return node;
+
+        };
+
+    }
+
+
+    /* ---- src / href set directly ----
+       Uses the blob addresses prepared by vfsPrefetchEmulator()
+       (must be synchronous). */
+
+    const patchProperty = (proto, prop) => {
+
+        const descriptor =
+            Object.getOwnPropertyDescriptor(proto, prop);
+
+        if(!descriptor || !descriptor.set){
+            return;
+        }
+
+        Object.defineProperty(proto, prop, {
+
+            configurable:true,
+
+            enumerable:descriptor.enumerable,
+
+            get(){
+                return descriptor.get.call(this);
+            },
+
+            set(value){
+
+                const path =
+                    pathOf(value);
+
+                if(
+                    path !== null &&
+                    vfsBlobUrls.has(path)
+                ){
+                    value = vfsBlobUrls.get(path);
+                }
+
+                descriptor.set.call(this, value);
+
+            }
+
+        });
+
+    };
+
+    patchProperty(win.HTMLScriptElement.prototype, "src");
+
+    patchProperty(win.HTMLLinkElement.prototype, "href");
+
+
+    /* ---- helpers your data/loader.js expects ----
+       offline-shim.js used to define these three on window;
+       loader.js calls them to load emulator.min.js (an ES module
+       that can't be import()'ed straight from a path). Same names
+       and behaviour, but served from the picked root folder.
+       The import runs in THIS window's realm so the emulator
+       attaches to the right document. */
+
+    const importModule =
+        win.eval("(u) => import(u)");
+
+    win.__EJS_offlineResolveRelPath = function(urlStr){
+
+        const path =
+            pathOf(urlStr);
+
+        if(
+            path === null ||
+            !path.startsWith("data/")
+        ){
+            return null;
+        }
+
+        return path.slice(5);
+
+    };
+
+    win.__EJS_loadLocalText = async function(relPath){
+
+        const file =
+            await vfsGetFile("data/" + relPath);
+
+        return await file.text();
+
+    };
+
+    win.__EJS_loadLocalModule = async function(relPath){
+
+        let text =
+            await win.__EJS_loadLocalText(relPath);
+
+        /* The .map file isn't reachable from a blob address. */
+
+        text = text.replace(
+            /\/\/#\s*sourceMappingURL=.*$/m,
+            ""
+        );
+
+        const blobUrl =
+            URL.createObjectURL(
+                new Blob(
+                    [text],
+                    { type:"text/javascript" }
+                )
+            );
+
+        try{
+
+            return await importModule(blobUrl);
+
+        }finally{
+
+            URL.revokeObjectURL(blobUrl);
+
+        }
+
+    };
+
+}
+
+
+/*
+    Prepare blob addresses for every .js/.css file under data/
+    and data-cache/ (keyed by the data/<name> address the loader
+    will ask for) before EmulatorJS starts.
+*/
+
+async function vfsPrefetchEmulator(){
+
+    if(!emulatorFilesFound){
+        return;
+    }
+
+    const index =
+        await vfsBuildIndex();
+
+    const keys = new Set();
+
+    for(const item of index){
+
+        let rest;
+
+        if(
+            item.startsWith("data-cache/") &&
+            item.endsWith(".js")
+        ){
+            rest = item.slice(11, -3);
+        }else if(item.startsWith("data/")){
+            rest = item.slice(5);
+        }else{
+            continue;
+        }
+
+        if(!/\.(js|css)$/i.test(rest)){
+            continue;
+        }
+
+        if(/^(cores|localization)\//i.test(rest)){
+            continue;
+        }
+
+        keys.add("data/" + rest);
+
+    }
+
+    await Promise.all(
+        [...keys].map(
+            key => vfsBlobUrl(key).catch(() => {})
+        )
+    );
+
+}
+
+
+vfsInstallHooks(window);
 
 
 /* =========================================================
@@ -1812,7 +2658,7 @@ function updateStatus(){
 
     statusElement.innerHTML = `
 
-        <strong>SELECT folder connected.</strong>
+        <strong>Root folder connected.</strong>
 
         ${romCount}
         ${romCount === 1 ? "ROM game" : "ROM games"}
@@ -1825,6 +2671,15 @@ function updateStatus(){
         found.
 
         ${saveText}
+
+        <br>
+
+        ${
+            emulatorFilesFound
+                ? "<strong>Emulator data found in root.</strong>"
+                : "<strong>No data folder in root</strong> - " +
+                  "falling back to ./data/ next to this page."
+        }
 
     `;
 
@@ -1844,8 +2699,50 @@ function updateStatus(){
 */
 async function connectSelectFolder(handle){
 
+    vfsResetCache();
+
+    rootDirectory_ =
+        handle;
+
+    await setupEmulatorDataPath();
+
+
+    /*
+        Find the SELECT folder inside the root (case-insensitive).
+        If there isn't one, treat the picked folder itself as the
+        content folder so older layouts still work.
+    */
+
     selectDirectory =
         handle;
+
+    try{
+
+        for await (const [name, entry] of handle.entries()){
+
+            if(
+                entry.kind === "directory" &&
+                name.toLowerCase() ===
+                    CONFIG.selectFolder.toLowerCase()
+            ){
+
+                selectDirectory =
+                    entry;
+
+                break;
+
+            }
+
+        }
+
+    }catch(error){
+
+        console.warn(
+            "Could not look for SELECT folder.",
+            error
+        );
+
+    }
 
     games = [];
 
@@ -1973,7 +2870,7 @@ async function connectSelectFolder(handle){
     */
 
     await rememberSelectFolder(
-        selectDirectory
+        rootDirectory_
     );
 
 
@@ -1989,6 +2886,8 @@ async function chooseSelectFolder(){
     /*
         Clear old handles before picking a new one.
     */
+
+    rootDirectory_ = null;
 
     selectDirectory = null;
 
@@ -2030,34 +2929,9 @@ async function chooseSelectFolder(){
 
 
             /*
-                The user should select SELECT.
+                The user selects the root folder; SELECT is
+                found inside it by connectSelectFolder().
             */
-
-            if(
-                selected.name !==
-                CONFIG.selectFolder
-            ){
-
-                const proceed =
-                    confirm(
-
-                        `You selected "${selected.name}".\n\n` +
-
-                        `Please select the "SELECT" folder.\n\n` +
-
-                        `Press OK to use this folder anyway, ` +
-
-                        `or Cancel to choose again.`
-
-                    );
-
-
-                if(!proceed){
-                    return;
-                }
-
-            }
-
 
             await connectSelectFolder(
                 selected
@@ -2096,7 +2970,7 @@ async function chooseSelectFolder(){
         statusElement.innerHTML = `
 
             <strong>
-                Could not open SELECT folder.
+                Could not open root folder.
             </strong>
 
             ${escapeHTML(
@@ -2144,6 +3018,10 @@ function chooseFolderFallback(){
 
         ports = [];
 
+        rootDirectory_ = null;
+
+        vfsResetCache();
+
 
         /*
             Fallback cannot automatically create a
@@ -2170,10 +3048,30 @@ function chooseFolderFallback(){
 
 
             /*
-                Remove SELECT.
+                Keep every file by its path inside the root so the
+                emulator data can be served from it.
+            */
+
+            vfsFiles.set(
+                parts.slice(1).join("/"),
+                file
+            );
+
+
+            /*
+                Remove the root folder name, then the optional
+                SELECT folder inside it.
             */
 
             parts.shift();
+
+            if(
+                parts.length &&
+                parts[0].toLowerCase() ===
+                    CONFIG.selectFolder.toLowerCase()
+            ){
+                parts.shift();
+            }
 
 
             const path =
@@ -2249,9 +3147,12 @@ function chooseFolderFallback(){
         }
 
 
+        setupEmulatorDataPath();
+
+
         statusElement.innerHTML = `
 
-            <strong>SELECT folder loaded.</strong>
+            <strong>Root folder loaded.</strong>
 
             ${games.length}
             ROM games and
@@ -2851,7 +3752,7 @@ async function loadEmulatorSaveOnStart(gameId){
 
     The launcher then accesses:
 
-        SELECT/Saves/
+        <root>/SELECT/Saves/
 
     and sends the result back.
 */
@@ -3162,7 +4063,7 @@ async function playGame(game){
 
         /*
             Route EmulatorJS's own save states and in-game
-            (SRAM) saves through the SELECT/Saves folder
+            (SRAM) saves through the Saves folder
             instead of browser storage or manual downloads.
 
             Each hook fully replaces the matching default
@@ -3296,6 +4197,9 @@ async function playGame(game){
             Remove old EmulatorJS loader.
         */
 
+        await vfsPrefetchEmulator();
+
+
         const oldLoader =
             document.getElementById(
                 "emulatorjs-loader"
@@ -3330,7 +4234,8 @@ async function playGame(game){
 
             alert(
                 "EmulatorJS could not be loaded.\n\n" +
-                "Check your internet connection."
+                "Make sure the root folder you chose contains " +
+                "the \"data\" folder."
             );
 
         };
@@ -3634,8 +4539,314 @@ chooseFolderButton.onclick =
     The handler lives inside SELECT so the main launcher remains
     completely unchanged for people who want to use their own files.
 */
+const KIOSK_FILE =
+    "ChimpanziniKiosk.html";
+
+async function openKiosk(){
+
+    if(!rootDirectory_ && !vfsFiles.size){
+
+        alert(
+            "Choose the root folder first, then open " +
+            "ChimpanziniKiosk."
+        );
+
+        return;
+
+    }
+
+
+    /*
+        Find SELECT/ChimpanziniKiosk.html inside the root folder
+        (or directly in the root if there is no SELECT folder).
+    */
+
+    const prefix =
+        (
+            selectDirectory &&
+            selectDirectory !== rootDirectory_
+        )
+            ? selectDirectory.name + "/"
+            : "";
+
+    let kioskPath = null;
+
+    let kioskFile = null;
+
+    for(const candidate of [
+        prefix + KIOSK_FILE,
+        KIOSK_FILE,
+        CONFIG.selectFolder + "/" + KIOSK_FILE
+    ]){
+
+        try{
+
+            kioskFile =
+                await vfsGetFile(candidate);
+
+            kioskPath = candidate;
+
+            break;
+
+        }catch(error){}
+
+    }
+
+    if(!kioskFile){
+
+        for(const [key, file] of vfsFiles){
+
+            if(
+                key.toLowerCase().endsWith(
+                    KIOSK_FILE.toLowerCase()
+                )
+            ){
+
+                kioskFile = file;
+
+                kioskPath = key;
+
+                break;
+
+            }
+
+        }
+
+    }
+
+    if(!kioskFile){
+
+        alert(
+            "Could not find " + KIOSK_FILE +
+            " in the " + CONFIG.selectFolder +
+            " folder of the root folder you chose."
+        );
+
+        return;
+
+    }
+
+
+    /*
+        Parse the page and give it a base address inside the root
+        folder, so its relative paths (../data/, ./data/ ...)
+        resolve to root-folder files.
+    */
+
+    const dirPath =
+        kioskPath.slice(
+            0,
+            kioskPath.lastIndexOf("/") + 1
+        );
+
+    const baseHref =
+        VFS_BASE +
+        dirPath.split("/")
+            .map(encodeURIComponent)
+            .join("/");
+
+    const doc =
+        new DOMParser().parseFromString(
+            await kioskFile.text(),
+            "text/html"
+        );
+
+    doc.querySelectorAll("base")
+        .forEach(node => node.remove());
+
+    const baseElement =
+        doc.createElement("base");
+
+    baseElement.href = baseHref;
+
+    doc.head.insertBefore(
+        baseElement,
+        doc.head.firstChild
+    );
+
+
+    /*
+        Scripts, stylesheets and media that the HTML parser loads
+        by itself can't be intercepted, so point them at blob
+        addresses made from the root folder's files now.
+    */
+
+    const selector =
+        "script[src], link[href], img[src], " +
+        "source[src], audio[src], video[src], track[src]";
+
+    for(const element of doc.querySelectorAll(selector)){
+
+        const attr =
+            element.hasAttribute("src")
+                ? "src"
+                : "href";
+
+        let path;
+
+        try{
+
+            path = vfsPathFromUrl(
+                new URL(
+                    element.getAttribute(attr),
+                    baseHref
+                ).href
+            );
+
+        }catch(error){
+            continue;
+        }
+
+        if(path === null){
+            continue;
+        }
+
+        try{
+
+            element.setAttribute(
+                attr,
+                await vfsBlobUrl(path)
+            );
+
+        }catch(error){
+
+            console.warn(
+                "Kiosk: could not load " + path,
+                error
+            );
+
+        }
+
+    }
+
+
+    await vfsPrefetchEmulator();
+
+
+    /*
+        Show the Kiosk in its own full-screen frame. A separate
+        window means its scripts can't clash with this launcher's
+        (both declare things like SYSTEMS), and the root-folder
+        hooks are installed on it before it starts.
+    */
+
+    const frame =
+        document.createElement("iframe");
+
+    frame.setAttribute(
+        "allow",
+        "autoplay; fullscreen; gamepad"
+    );
+
+    frame.style.cssText =
+        "position:fixed;inset:0;width:100%;height:100%;" +
+        "border:0;z-index:200;background:#000";
+
+    document.body.appendChild(frame);
+
+    const frameWindow =
+        frame.contentWindow;
+
+    vfsInstallHooks(frameWindow);
+
+    const frameDocument =
+        frameWindow.document;
+
+    frameDocument.open();
+
+    frameDocument.write(
+        "<!DOCTYPE html>\n" +
+        doc.documentElement.outerHTML
+    );
+
+    frameDocument.close();
+
+
+    /*
+        Way back to the launcher (its state is untouched).
+    */
+
+    const closeKiosk = () => {
+
+        frame.remove();
+
+        backToLauncher.remove();
+
+        document.body.style.overflow = "";
+
+    };
+
+    const backToLauncher =
+        document.createElement("button");
+
+    backToLauncher.textContent =
+        "\u2190 Launcher";
+
+    backToLauncher.style.cssText =
+        "position:fixed;left:10px;bottom:10px;z-index:2147483647;" +
+        "padding:6px 10px;border-radius:6px;border:1px solid #444;" +
+        "background:rgba(20,20,25,.8);color:#fff;cursor:pointer;" +
+        "font:12px system-ui,sans-serif;opacity:.65";
+
+    backToLauncher.onclick =
+        closeKiosk;
+
+    document.body.appendChild(backToLauncher);
+
+    document.body.style.overflow = "hidden";
+
+    /* Links to index.html inside the Kiosk also go back. */
+
+    frameDocument.addEventListener(
+        "click",
+        event => {
+
+            const link =
+                event.target.closest &&
+                event.target.closest("a[href]");
+
+            if(!link){
+                return;
+            }
+
+            const path =
+                vfsPathFromUrl(
+                    link.href,
+                    frameDocument.baseURI
+                );
+
+            if(
+                path !== null &&
+                /(^|\/)index\.html$/i.test(path)
+            ){
+
+                event.preventDefault();
+
+                closeKiosk();
+
+            }
+
+        },
+        true
+    );
+
+    frameWindow.focus();
+
+}
+
 onlineLibraryButton.onclick = () => {
-    location.href = "./SELECT/ChimpanziniKiosk.html";
+
+    openKiosk().catch(error => {
+
+        console.error(error);
+
+        alert(
+            "Could not open ChimpanziniKiosk:\n\n" +
+            error.message
+        );
+
+    });
+
 };
 
 
@@ -3702,11 +4913,11 @@ statusElement.innerHTML = `
 
     Click
 
-    <b>Choose SELECT Folder</b>
+    <b>Choose Root Folder</b>
 
-    and select:
+    and select the folder that contains:
 
-    <b>CHIMPANZINI PANANINI/SELECT</b>
+    <b>index.html</b>
 
     <br><br>
 
